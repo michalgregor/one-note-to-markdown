@@ -6,9 +6,9 @@ A Windows desktop application that exports Microsoft OneNote notebooks, sections
 
 ## Buy Me a Coffee
 
-This is all [free](https://www.biblegateway.com/passage/?search=Matthew%2010%3A8&version=NIV), but if you're feeling generous, you can buy me a coffee, or tea, which is more my thing.
+This is all [free](https://www.biblegateway.com/passage/?search=Matthew%2010%3A8&version=NIV), but if you're feeling generous, you can [buy me a coffee](https://buymeacoffee.com/segunak), or herbal tea, which is more my thing!
 
-<a href="https://buymeacoffee.com/segunak" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" style="height: 60px !important; width: 217px !important;"></a>
+<a href="https://buymeacoffee.com/segunak" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" style="height: 72px !important; width: 260px !important;"></a>
 
 ## Download
 
