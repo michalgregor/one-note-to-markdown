@@ -4,6 +4,12 @@ A Windows desktop application that exports Microsoft OneNote notebooks, sections
 
 ![OneNote to Markdown Exporter Screenshot](docs/screenshot.png)
 
+## Buy Me a Coffee
+
+This is all [free](https://www.biblegateway.com/passage/?search=Matthew%2010%3A8&version=NIV), but if you're feeling generous, you can buy me a coffee, or tea, which is more my thing.
+
+[![Buy Me a Coffee](https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png)](https://buymeacoffee.com/segunak)
+
 ## Download
 
 Go to [GitHub Releases](https://github.com/segunak/one-note-to-markdown/releases) to download the latest version.
