@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.CommandLine;
-using System.CommandLine.Invocation;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -23,7 +22,7 @@ namespace OneNoteMarkdownExporter.Services
         public static async Task<int> RunAsync(string[] args)
         {
             var rootCommand = BuildRootCommand();
-            return await rootCommand.InvokeAsync(args);
+            return await rootCommand.Parse(args).InvokeAsync();
         }
 
         /// <summary>
@@ -56,101 +55,104 @@ namespace OneNoteMarkdownExporter.Services
             };
 
             // Options
-            var allOption = new Option<bool>(
-                "--all",
-                "Export all notebooks");
-
-            var notebookOption = new Option<string[]>(
-                "--notebook",
-                "Export specific notebook(s) by name")
+            var allOption = new Option<bool>("--all")
             {
+                Description = "Export all notebooks"
+            };
+
+            var notebookOption = new Option<string[]>("--notebook")
+            {
+                Description = "Export specific notebook(s) by name",
                 AllowMultipleArgumentsPerToken = false
             };
 
-            var sectionOption = new Option<string[]>(
-                "--section",
-                "Export section(s) by path (e.g., 'Notebook/Section')")
+            var sectionOption = new Option<string[]>("--section")
             {
+                Description = "Export section(s) by path (e.g., 'Notebook/Section')",
                 AllowMultipleArgumentsPerToken = false
             };
 
-            var pageOption = new Option<string[]>(
-                "--page",
-                "Export page(s) by ID")
+            var pageOption = new Option<string[]>("--page")
             {
+                Description = "Export page(s) by ID",
                 AllowMultipleArgumentsPerToken = false
             };
 
-            var outputOption = new Option<string>(
-                aliases: new[] { "--output", "-o" },
-                description: "Output directory for exported files",
-                getDefaultValue: ExportOptions.GetDefaultOutputPath);
+            var outputOption = new Option<string>("--output", "-o")
+            {
+                Description = "Output directory for exported files",
+                DefaultValueFactory = _ => ExportOptions.GetDefaultOutputPath()
+            };
 
-            var overwriteOption = new Option<bool>(
-                "--overwrite",
-                "Overwrite existing files instead of creating numbered copies");
+            var overwriteOption = new Option<bool>("--overwrite")
+            {
+                Description = "Overwrite existing files instead of creating numbered copies"
+            };
 
-            var noLintOption = new Option<bool>(
-                "--no-lint",
-                "Disable Markdown linting (markdownlint-cli)");
+            var noLintOption = new Option<bool>("--no-lint")
+            {
+                Description = "Disable Markdown linting (markdownlint-cli)"
+            };
 
-            var lintConfigOption = new Option<string?>(
-                "--lint-config",
-                "Path to custom markdownlint configuration file");
+            var lintConfigOption = new Option<string?>("--lint-config")
+            {
+                Description = "Path to custom markdownlint configuration file"
+            };
 
-            var listOption = new Option<bool>(
-                "--list",
-                "List available notebooks, sections, and pages without exporting");
+            var listOption = new Option<bool>("--list")
+            {
+                Description = "List available notebooks, sections, and pages without exporting"
+            };
 
-            var dryRunOption = new Option<bool>(
-                "--dry-run",
-                "Preview what would be exported without actually exporting");
+            var dryRunOption = new Option<bool>("--dry-run")
+            {
+                Description = "Preview what would be exported without actually exporting"
+            };
 
-            var verboseOption = new Option<bool>(
-                aliases: new[] { "--verbose", "-v" },
-                "Show detailed output");
+            var verboseOption = new Option<bool>("--verbose", "-v")
+            {
+                Description = "Show detailed output"
+            };
 
-            var quietOption = new Option<bool>(
-                aliases: new[] { "--quiet", "-q" },
-                "Show only errors");
+            var quietOption = new Option<bool>("--quiet", "-q")
+            {
+                Description = "Show only errors"
+            };
 
             // Add options to command
-            rootCommand.AddOption(allOption);
-            rootCommand.AddOption(notebookOption);
-            rootCommand.AddOption(sectionOption);
-            rootCommand.AddOption(pageOption);
-            rootCommand.AddOption(outputOption);
-            rootCommand.AddOption(overwriteOption);
-            rootCommand.AddOption(noLintOption);
-            rootCommand.AddOption(lintConfigOption);
-            rootCommand.AddOption(listOption);
-            rootCommand.AddOption(dryRunOption);
-            rootCommand.AddOption(verboseOption);
-            rootCommand.AddOption(quietOption);
+            rootCommand.Options.Add(allOption);
+            rootCommand.Options.Add(notebookOption);
+            rootCommand.Options.Add(sectionOption);
+            rootCommand.Options.Add(pageOption);
+            rootCommand.Options.Add(outputOption);
+            rootCommand.Options.Add(overwriteOption);
+            rootCommand.Options.Add(noLintOption);
+            rootCommand.Options.Add(lintConfigOption);
+            rootCommand.Options.Add(listOption);
+            rootCommand.Options.Add(dryRunOption);
+            rootCommand.Options.Add(verboseOption);
+            rootCommand.Options.Add(quietOption);
 
-            rootCommand.SetHandler(async (context) =>
+            rootCommand.SetAction(async (result, cancellationToken) =>
             {
-                var result = context.ParseResult;
-
                 var options = new ExportOptions
                 {
-                    ExportAll = result.GetValueForOption(allOption),
-                    NotebookNames = result.GetValueForOption(notebookOption)?.ToList(),
-                    SectionPaths = result.GetValueForOption(sectionOption)?.ToList(),
-                    PageIds = result.GetValueForOption(pageOption)?.ToList(),
-                    OutputPath = result.GetValueForOption(outputOption) ?? ExportOptions.GetDefaultOutputPath(),
-                    Overwrite = result.GetValueForOption(overwriteOption),
-                    ApplyLinting = !result.GetValueForOption(noLintOption),
-                    LintConfigPath = result.GetValueForOption(lintConfigOption),
-                    DryRun = result.GetValueForOption(dryRunOption),
-                    Verbose = result.GetValueForOption(verboseOption),
-                    Quiet = result.GetValueForOption(quietOption)
+                    ExportAll = result.GetValue(allOption),
+                    NotebookNames = result.GetValue(notebookOption)?.ToList(),
+                    SectionPaths = result.GetValue(sectionOption)?.ToList(),
+                    PageIds = result.GetValue(pageOption)?.ToList(),
+                    OutputPath = result.GetValue(outputOption) ?? ExportOptions.GetDefaultOutputPath(),
+                    Overwrite = result.GetValue(overwriteOption),
+                    ApplyLinting = !result.GetValue(noLintOption),
+                    LintConfigPath = result.GetValue(lintConfigOption),
+                    DryRun = result.GetValue(dryRunOption),
+                    Verbose = result.GetValue(verboseOption),
+                    Quiet = result.GetValue(quietOption)
                 };
 
-                var listMode = result.GetValueForOption(listOption);
+                var listMode = result.GetValue(listOption);
 
-                var exitCode = await ExecuteAsync(options, listMode, context.GetCancellationToken());
-                context.ExitCode = exitCode;
+                return await ExecuteAsync(options, listMode, cancellationToken);
             });
 
             return rootCommand;
