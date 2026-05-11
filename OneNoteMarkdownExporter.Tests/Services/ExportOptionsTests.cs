@@ -149,6 +149,16 @@ public class ExportOptionsTests
     }
 
     [Fact]
+    public void AssetsFolderPath_DefaultsToNull()
+    {
+        // Arrange
+        var options = new ExportOptions();
+
+        // Assert
+        options.AssetsFolderPath.Should().BeNull();
+    }
+
+    [Fact]
     public void ApplyLinting_DefaultsToTrue()
     {
         // Arrange

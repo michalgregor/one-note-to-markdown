@@ -1,3 +1,4 @@
+using System.IO;
 using FluentAssertions;
 using OneNoteMarkdownExporter.Services;
 using Xunit;
@@ -307,6 +308,66 @@ public class OneNoteXmlToMarkdownConverterTests
         // Assert - ReverseMarkdown converts tables to Markdown format
         result.Should().Contain("|");
         result.Should().Contain("---");
+    }
+
+    #endregion
+
+    #region Image Tests
+
+    [Fact]
+    public void Convert_ImageWithCustomRelativeAssetsPath_UsesRelativeAssetsPathInMarkdown()
+    {
+        // Arrange
+        var tempRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var assetsFolder = Path.Combine(tempRoot, "shared", "assets");
+        var xml = @"<?xml version=""1.0""?>
+            <one:Page xmlns:one=""http://schemas.microsoft.com/office/onenote/2013/onenote"">
+                <one:Image format=""png""><one:Data>AQID</one:Data></one:Image>
+            </one:Page>";
+
+        try
+        {
+            // Act
+            var result = _converter.Convert(xml, assetsFolder, "../shared/assets", null, "page");
+
+            // Assert
+            result.Should().Contain("../shared/assets/page_image_0001.png");
+            File.Exists(Path.Combine(assetsFolder, "page_image_0001.png")).Should().BeTrue();
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, true);
+        }
+    }
+
+    [Fact]
+    public void Convert_ImageWithExistingAssetFile_OverwritesAssetFile()
+    {
+        // Arrange
+        var tempRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var assetsFolder = Path.Combine(tempRoot, "assets");
+        var existingAssetPath = Path.Combine(assetsFolder, "page_image_0001.png");
+        var xml = @"<?xml version=""1.0""?>
+            <one:Page xmlns:one=""http://schemas.microsoft.com/office/onenote/2013/onenote"">
+                <one:Image format=""png""><one:Data>AQID</one:Data></one:Image>
+            </one:Page>";
+
+        try
+        {
+            Directory.CreateDirectory(assetsFolder);
+            File.WriteAllBytes(existingAssetPath, new byte[] { 9, 9, 9 });
+
+            // Act
+            var result = _converter.Convert(xml, assetsFolder, "assets", null, "page");
+
+            // Assert
+            result.Should().Contain("assets/page_image_0001.png");
+            File.ReadAllBytes(existingAssetPath).Should().Equal(new byte[] { 1, 2, 3 });
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, true);
+        }
     }
 
     #endregion

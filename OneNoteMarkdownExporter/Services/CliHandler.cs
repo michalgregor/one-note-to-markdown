@@ -38,7 +38,7 @@ namespace OneNoteMarkdownExporter.Services
             var cliFlags = new[]
             {
                 "--all", "--notebook", "--section", "--page", "--output", "-o",
-                "--overwrite", "--no-lint", "--lint-config",
+                "--assets-folder", "--overwrite", "--no-lint", "--lint-config",
                 "--list", "--dry-run", "--verbose", "-v", "--quiet", "-q",
                 "--help", "-h", "-?", "--version"
             };
@@ -84,6 +84,11 @@ namespace OneNoteMarkdownExporter.Services
                 DefaultValueFactory = _ => ExportOptions.GetDefaultOutputPath()
             };
 
+            var assetsFolderOption = new Option<string?>("--assets-folder")
+            {
+                Description = "Path to folder for storing exported assets (default: <output>/assets)"
+            };
+
             var overwriteOption = new Option<bool>("--overwrite")
             {
                 Description = "Overwrite existing files instead of creating numbered copies"
@@ -125,6 +130,7 @@ namespace OneNoteMarkdownExporter.Services
             rootCommand.Options.Add(sectionOption);
             rootCommand.Options.Add(pageOption);
             rootCommand.Options.Add(outputOption);
+            rootCommand.Options.Add(assetsFolderOption);
             rootCommand.Options.Add(overwriteOption);
             rootCommand.Options.Add(noLintOption);
             rootCommand.Options.Add(lintConfigOption);
@@ -142,6 +148,7 @@ namespace OneNoteMarkdownExporter.Services
                     SectionPaths = result.GetValue(sectionOption)?.ToList(),
                     PageIds = result.GetValue(pageOption)?.ToList(),
                     OutputPath = result.GetValue(outputOption) ?? ExportOptions.GetDefaultOutputPath(),
+                    AssetsFolderPath = result.GetValue(assetsFolderOption),
                     Overwrite = result.GetValue(overwriteOption),
                     ApplyLinting = !result.GetValue(noLintOption),
                     LintConfigPath = result.GetValue(lintConfigOption),
@@ -195,6 +202,7 @@ namespace OneNoteMarkdownExporter.Services
                     Console.WriteLine("OneNote to Markdown Exporter");
                     Console.WriteLine("============================");
                     Console.WriteLine($"Output directory: {options.OutputPath}");
+                    Console.WriteLine($"Assets directory: {AssetPathResolver.ResolveAssetsFolderPath(options.OutputPath, options.AssetsFolderPath)}");
                     Console.WriteLine($"Overwrite: {(options.Overwrite ? "Yes" : "No")}");
                     Console.WriteLine($"Linting: {(options.ApplyLinting ? "Enabled (markdownlint-cli)" : "Disabled")}");
                     if (options.DryRun) Console.WriteLine("Mode: DRY RUN (no files will be created)");

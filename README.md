@@ -32,7 +32,7 @@ Go to [GitHub Releases](https://github.com/segunak/one-note-to-markdown/releases
 - **Two ways to run** - GUI for interactive use, CLI for scripting and automation
 - **Tree view selection** - Pick entire notebooks, specific sections, or individual pages
 - **Clean Markdown output** - Proper formatting, no leftover HTML tags
-- **Image extraction** - Embedded images saved to an `assets` folder with relative paths
+- **Image extraction** - Embedded images saved to a configurable assets folder with relative paths
 - **Sync-friendly** - "Overwrite existing files" option keeps exports in sync with your notes
 - **Markdown linting** - Automatic cleanup via bundled markdownlint-cli (configurable)
 
@@ -56,10 +56,11 @@ Double-click `OneNoteMarkdownExporter.exe` to launch the graphical interface.
 1. **Launch the app** - OneNote will open automatically if it's not running
 2. **Select your content** - Check the boxes next to notebooks, sections, or pages
 3. **Choose an output directory** - Defaults to `Downloads\OneNoteExport`
-4. **Configure options**:
+4. **Choose an assets folder** - Defaults to `<output>\assets`
+5. **Configure options**:
    - **Overwrite existing files** - Enable this for ongoing syncing
    - **Apply Markdown linting** - Cleans up the output (can be toggled off)
-5. **Click Start Export**
+6. **Click Start Export**
 
 ## CLI Mode
 
@@ -74,6 +75,9 @@ OneNoteMarkdownExporter.exe --notebook "Work Notes"
 
 # Export to a custom directory
 OneNoteMarkdownExporter.exe --all --output "C:\MyExports"
+
+# Export images/assets to a custom folder
+OneNoteMarkdownExporter.exe --all --assets-folder "D:\OneNoteAssets"
 
 # Show help
 OneNoteMarkdownExporter.exe --help
@@ -95,6 +99,7 @@ OneNoteMarkdownExporter.exe --help
 | Option | Description |
 |--------|-------------|
 | `--output`, `-o` `<path>` | Output directory (default: `Downloads\OneNoteExport`) |
+| `--assets-folder <path>` | Folder for exported images/assets (default: `<output>\assets`) |
 | `--overwrite` | Overwrite existing files instead of creating numbered copies |
 
 #### Linting
@@ -140,7 +145,14 @@ OneNoteMarkdownExporter.exe --all --quiet --overwrite
 
 # Full verbose export to custom location
 OneNoteMarkdownExporter.exe --all --output "D:\Backups\OneNote" --verbose --overwrite
+
+# Export notes and store assets in a separate folder
+OneNoteMarkdownExporter.exe --all --output "D:\Backups\OneNote" --assets-folder "D:\Backups\OneNoteAssets"
 ```
+
+### Assets Folder
+
+Exported images are saved to `<output>\assets` by default. Use the GUI assets folder field or the CLI `--assets-folder <path>` option to choose a different folder. Relative paths are resolved from the output directory, and absolute paths are used as provided. Missing folders are created automatically. Existing asset folders are reused, and generated asset files with the same names are overwritten on later exports. Paths where the assets folder itself would be an existing file are rejected. Markdown image links are generated relative to each exported page.
 
 ## Markdown Linting
 

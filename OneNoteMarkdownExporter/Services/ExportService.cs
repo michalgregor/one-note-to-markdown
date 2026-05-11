@@ -94,13 +94,15 @@ namespace OneNoteMarkdownExporter.Services
                     return result;
                 }
 
+                var assetsRoot = AssetPathResolver.PrepareAssetsFolder(options.OutputPath, options.AssetsFolderPath);
+
                 // Export items
                 await Task.Run(() =>
                 {
                     foreach (var item in selectedItems)
                     {
                         if (cancellationToken.IsCancellationRequested) break;
-                        ExportItem(item, options.OutputPath, options.OutputPath, options, result, progress, cancellationToken);
+                        ExportItem(item, options.OutputPath, options.OutputPath, assetsRoot, options, result, progress, cancellationToken);
                     }
                 }, cancellationToken);
 
@@ -134,7 +136,12 @@ namespace OneNoteMarkdownExporter.Services
             
             // Use a shortened hash of the pageId as prefix to avoid collisions (pageId is a GUID-like string)
             var pagePrefix = pageId.Length > 8 ? pageId.Substring(0, 8) : pageId;
-            var markdown = _xmlConverter.Convert(pageXml, "", "assets", binaryFetcher, pagePrefix);
+            var outputPath = string.IsNullOrWhiteSpace(options.OutputPath)
+                ? ExportOptions.GetDefaultOutputPath()
+                : options.OutputPath;
+            var assetsRoot = AssetPathResolver.ResolveAssetsFolderPath(outputPath, options.AssetsFolderPath);
+            var relativeAssetsPath = AssetPathResolver.GetRelativeAssetsPath(outputPath, assetsRoot);
+            var markdown = _xmlConverter.Convert(pageXml, assetsRoot, relativeAssetsPath, binaryFetcher, pagePrefix);
 
             if (options.ApplyLinting)
             {
@@ -327,6 +334,7 @@ namespace OneNoteMarkdownExporter.Services
             OneNoteItem item,
             string currentPath,
             string rootPath,
+            string assetsRoot,
             ExportOptions options,
             ExportResult result,
             IProgress<string>? progress,
@@ -359,7 +367,7 @@ namespace OneNoteMarkdownExporter.Services
 
                     // If parent (this item) is selected, treat child as selected
                     if (isSelected) child.IsSelected = true;
-                    ExportItem(child, myPath, rootPath, options, result, progress, token);
+                    ExportItem(child, myPath, rootPath, assetsRoot, options, result, progress, token);
                 }
             }
             else
@@ -367,7 +375,7 @@ namespace OneNoteMarkdownExporter.Services
                 // It's a page
                 if (isSelected)
                 {
-                    ExportPage(item, currentPath, rootPath, options, result, progress, token);
+                    ExportPage(item, currentPath, rootPath, assetsRoot, options, result, progress, token);
                 }
             }
         }
@@ -376,6 +384,7 @@ namespace OneNoteMarkdownExporter.Services
             OneNoteItem page,
             string folderPath,
             string rootPath,
+            string assetsRoot,
             ExportOptions options,
             ExportResult result,
             IProgress<string>? progress,
@@ -413,16 +422,12 @@ namespace OneNoteMarkdownExporter.Services
                 }
             }
 
-            var assetsRoot = Path.Combine(rootPath, "assets");
-
             try
             {
                 // Get page content directly via XML (bypasses DLP/Publish restrictions)
                 var pageXml = _oneNoteService.GetPageContent(page.Id);
 
-                if (!Directory.Exists(assetsRoot)) Directory.CreateDirectory(assetsRoot);
-
-                var relativeAssetsPath = Path.GetRelativePath(folderPath, assetsRoot).Replace("\\", "/");
+                var relativeAssetsPath = AssetPathResolver.GetRelativeAssetsPath(folderPath, assetsRoot);
 
                 // Create a binary content fetcher for images that aren't embedded
                 BinaryContentFetcher binaryFetcher = (callbackId) => _oneNoteService.GetBinaryPageContent(page.Id, callbackId);

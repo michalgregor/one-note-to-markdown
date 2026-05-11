@@ -14,6 +14,12 @@ namespace OneNoteMarkdownExporter.Services
         public string OutputPath { get; set; } = string.Empty;
 
         /// <summary>
+        /// Folder where exported assets will be saved. If null/empty, uses OutputPath\assets.
+        /// Relative paths are resolved from the output directory.
+        /// </summary>
+        public string? AssetsFolderPath { get; set; }
+
+        /// <summary>
         /// If true, overwrite existing files. If false, create numbered copies.
         /// </summary>
         public bool Overwrite { get; set; } = false;

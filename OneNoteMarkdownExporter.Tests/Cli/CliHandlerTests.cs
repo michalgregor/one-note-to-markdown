@@ -186,6 +186,19 @@ public class CliHandlerTests
     }
 
     [Fact]
+    public void ShouldRunCli_WithAssetsFolderFlag_ReturnsTrue()
+    {
+        // Arrange
+        var args = new[] { "--assets-folder", "C:\\ExportAssets" };
+
+        // Act
+        var result = CliHandler.ShouldRunCli(args);
+
+        // Assert
+        result.Should().BeTrue();
+    }
+
+    [Fact]
     public void ShouldRunCli_WithDryRunFlag_ReturnsTrue()
     {
         // Arrange

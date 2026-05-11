@@ -50,6 +50,7 @@ namespace OneNoteMarkdownExporter
                 }
                 
                 OutputPathBox.Text = downloadsPath;
+                AssetsPathBox.Text = AssetPathResolver.GetDefaultAssetsFolderPath(downloadsPath);
             }
             catch (Exception ex)
             {
@@ -60,6 +61,7 @@ namespace OneNoteMarkdownExporter
                     Directory.CreateDirectory(fallbackPath);
                 }
                 OutputPathBox.Text = fallbackPath;
+                AssetsPathBox.Text = AssetPathResolver.GetDefaultAssetsFolderPath(fallbackPath);
                 Log($"Could not set Downloads folder, using temp folder: {ex.Message}");
             }
         }
@@ -146,7 +148,28 @@ namespace OneNoteMarkdownExporter
             {
                 if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
                 {
+                    var previousDefaultAssetsPath = AssetPathResolver.GetDefaultAssetsFolderPath(OutputPathBox.Text);
                     OutputPathBox.Text = dialog.SelectedPath;
+                    if (string.IsNullOrWhiteSpace(AssetsPathBox.Text) || PathsEqual(AssetsPathBox.Text, previousDefaultAssetsPath))
+                    {
+                        AssetsPathBox.Text = AssetPathResolver.GetDefaultAssetsFolderPath(dialog.SelectedPath);
+                    }
+                }
+            }
+        }
+
+        private void BrowseAssetsButton_Click(object sender, RoutedEventArgs e)
+        {
+            using (var dialog = new FolderBrowserDialog())
+            {
+                if (!string.IsNullOrWhiteSpace(AssetsPathBox.Text) && Directory.Exists(AssetsPathBox.Text))
+                {
+                    dialog.SelectedPath = AssetsPathBox.Text;
+                }
+
+                if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+                {
+                    AssetsPathBox.Text = dialog.SelectedPath;
                 }
             }
         }
@@ -171,6 +194,17 @@ namespace OneNoteMarkdownExporter
             bool expandCollapsed = ExpandCollapsedBox.IsChecked == true;
             bool overwriteExisting = OverwriteExistingBox.IsChecked == true;
             bool applyLinting = LintMarkdownBox.IsChecked == true;
+            string assetsRoot;
+            try
+            {
+                assetsRoot = AssetPathResolver.PrepareAssetsFolder(rootPath, AssetsPathBox.Text);
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"Invalid assets folder: {ex.Message}", "Assets Folder", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
             _cts = new CancellationTokenSource();
             var token = _cts.Token;
 
@@ -186,7 +220,7 @@ namespace OneNoteMarkdownExporter
                     foreach (var item in items)
                     {
                         if (token.IsCancellationRequested) break;
-                        ExportItem(item, rootPath, rootPath, expandCollapsed, overwriteExisting, applyLinting, token);
+                        ExportItem(item, rootPath, rootPath, assetsRoot, expandCollapsed, overwriteExisting, applyLinting, token);
                     }
                     
                     if (token.IsCancellationRequested)
@@ -250,7 +284,7 @@ namespace OneNoteMarkdownExporter
             }
         }
 
-        private void ExportItem(OneNoteItem item, string currentPath, string rootPath, bool expandCollapsed, bool overwriteExisting, bool applyLinting, CancellationToken token)
+        private void ExportItem(OneNoteItem item, string currentPath, string rootPath, string assetsRoot, bool expandCollapsed, bool overwriteExisting, bool applyLinting, CancellationToken token)
         {
             if (token.IsCancellationRequested) return;
 
@@ -279,7 +313,7 @@ namespace OneNoteMarkdownExporter
 
                     // If parent (this item) is selected, treat child as selected
                     if (isSelected) child.IsSelected = true; 
-                    ExportItem(child, myPath, rootPath, expandCollapsed, overwriteExisting, applyLinting, token);
+                    ExportItem(child, myPath, rootPath, assetsRoot, expandCollapsed, overwriteExisting, applyLinting, token);
                 }
             }
             else
@@ -287,7 +321,7 @@ namespace OneNoteMarkdownExporter
                 // It's a page
                 if (isSelected)
                 {
-                    ExportPage(item, currentPath, rootPath, expandCollapsed, overwriteExisting, applyLinting, token);
+                    ExportPage(item, currentPath, rootPath, assetsRoot, expandCollapsed, overwriteExisting, applyLinting, token);
                 }
             }
         }
@@ -301,7 +335,7 @@ namespace OneNoteMarkdownExporter
             return false;
         }
 
-        private void ExportPage(OneNoteItem page, string folderPath, string rootPath, bool expandCollapsed, bool overwriteExisting, bool applyLinting, CancellationToken token)
+        private void ExportPage(OneNoteItem page, string folderPath, string rootPath, string assetsRoot, bool expandCollapsed, bool overwriteExisting, bool applyLinting, CancellationToken token)
         {
             if (_oneNoteService == null) return;
             if (token.IsCancellationRequested) return;
@@ -332,16 +366,12 @@ namespace OneNoteMarkdownExporter
                 }
             }
 
-            var assetsRoot = Path.Combine(rootPath, "assets");
-
             try
             {
                 // Get page content directly via XML (bypasses DLP/Publish restrictions)
                 var pageXml = _oneNoteService.GetPageContent(page.Id);
                 
-                if (!Directory.Exists(assetsRoot)) Directory.CreateDirectory(assetsRoot);
-
-                var relativeAssetsPath = Path.GetRelativePath(folderPath, assetsRoot).Replace("\\", "/");
+                var relativeAssetsPath = AssetPathResolver.GetRelativeAssetsPath(folderPath, assetsRoot);
                 
                 // Create a binary content fetcher for images that aren't embedded
                 BinaryContentFetcher binaryFetcher = (callbackId) => _oneNoteService.GetBinaryPageContent(page.Id, callbackId);
@@ -371,6 +401,21 @@ namespace OneNoteMarkdownExporter
             catch (Exception ex)
             {
                 Dispatcher.Invoke(() => Log($"  Error exporting page '{page.Name}': {ex.Message}"));
+            }
+        }
+
+        private static bool PathsEqual(string firstPath, string secondPath)
+        {
+            try
+            {
+                return string.Equals(
+                    Path.GetFullPath(firstPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+                    Path.GetFullPath(secondPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+                    StringComparison.OrdinalIgnoreCase);
+            }
+            catch
+            {
+                return string.Equals(firstPath, secondPath, StringComparison.OrdinalIgnoreCase);
             }
         }
 
