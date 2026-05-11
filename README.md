@@ -31,6 +31,7 @@ Go to [GitHub Releases](https://github.com/segunak/one-note-to-markdown/releases
 
 - **Two ways to run** - GUI for interactive use, CLI for scripting and automation
 - **Tree view selection** - Pick entire notebooks, specific sections, or individual pages
+- **Subpage hierarchy** - OneNote subpages export into nested folders
 - **Clean Markdown output** - Proper formatting, no leftover HTML tags
 - **Image extraction** - Embedded images saved to a configurable assets folder with relative paths
 - **Sync-friendly** - "Overwrite existing files" option keeps exports in sync with your notes
@@ -153,6 +154,25 @@ OneNoteMarkdownExporter.exe --all --output "D:\Backups\OneNote" --assets-folder 
 ### Assets Folder
 
 Exported images are saved to `<output>\assets` by default. Use the GUI assets folder field or the CLI `--assets-folder <path>` option to choose a different folder. Relative paths are resolved from the output directory, and absolute paths are used as provided. Missing folders are created automatically. Existing asset folders are reused, and generated asset files with the same names are overwritten on later exports. Paths where the assets folder itself would be an existing file are rejected. Markdown image links are generated relative to each exported page.
+
+### Subpages
+
+OneNote subpages are preserved as nested folders. A parent page is exported as Markdown beside a folder with the same name, and its subpages are exported inside that folder.
+
+```text
+Section A\
+  Parent Page.md
+  Parent Page\
+    Child Page.md
+    Child Page\
+      Grandchild Page.md
+```
+
+If you export only a subpage, the parent folders are still created so the exported file keeps its place in the original hierarchy.
+
+### Windows Safe Names
+
+Exported folder and file names are made safe for Windows. Invalid filename characters are replaced, trailing spaces and periods are removed, and reserved Windows names such as `CON`, `NUL`, `COM1`, and `LPT1` are adjusted. Long names are preserved when the full target path fits within the standard Windows path budget. When a generated path is too long, only the generated OneNote-derived name is shortened, and a stable hash suffix keeps repeated exports targeting the same file.
 
 ## Markdown Linting
 

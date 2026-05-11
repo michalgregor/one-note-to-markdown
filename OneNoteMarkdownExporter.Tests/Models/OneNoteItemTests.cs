@@ -72,6 +72,16 @@ public class OneNoteItemTests
         item.Path.Should().BeEmpty();
     }
 
+    [Fact]
+    public void PageLevel_DefaultsToZero()
+    {
+        // Arrange & Act
+        var item = new OneNoteItem();
+
+        // Assert
+        item.PageLevel.Should().Be(0);
+    }
+
     #endregion
 
     #region Property Setting Tests
@@ -113,6 +123,19 @@ public class OneNoteItemTests
 
         // Assert
         item.Path.Should().Be(@"C:\Export\MyNotebook");
+    }
+
+    [Fact]
+    public void PageLevel_CanBeSet()
+    {
+        // Arrange
+        var item = new OneNoteItem();
+
+        // Act
+        item.PageLevel = 2;
+
+        // Assert
+        item.PageLevel.Should().Be(2);
     }
 
     #endregion
@@ -376,6 +399,7 @@ public class OneNoteItemTests
             Name = "My Notebook",
             Type = OneNoteItemType.Notebook,
             Path = @"C:\Export",
+            PageLevel = 1,
             IsSelected = true,
             IsExpanded = true
         };
@@ -385,6 +409,7 @@ public class OneNoteItemTests
         item.Name.Should().Be("My Notebook");
         item.Type.Should().Be(OneNoteItemType.Notebook);
         item.Path.Should().Be(@"C:\Export");
+        item.PageLevel.Should().Be(1);
         item.IsSelected.Should().BeTrue();
         item.IsExpanded.Should().BeTrue();
     }

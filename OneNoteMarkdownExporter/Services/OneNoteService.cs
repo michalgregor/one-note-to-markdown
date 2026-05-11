@@ -29,7 +29,12 @@ namespace OneNoteMarkdownExporter.Services
         {
             string xml;
             _oneNoteApp.GetHierarchy(null, HierarchyScope.hsPages, out xml);
-            
+
+            return ParseHierarchyXml(xml);
+        }
+
+        public static List<OneNoteItem> ParseHierarchyXml(string xml)
+        {
             var doc = XDocument.Parse(xml);
             if (doc.Root == null) return new List<OneNoteItem>();
 
@@ -44,26 +49,83 @@ namespace OneNoteMarkdownExporter.Services
             return items;
         }
 
-        private OneNoteItem ParseNode(XElement element, XNamespace ns)
+        private static OneNoteItem ParseNode(XElement element, XNamespace ns)
         {
+            var itemType = GetType(element.Name.LocalName);
             var item = new OneNoteItem
             {
                 Id = element.Attribute("ID")?.Value ?? "",
                 Name = element.Attribute("name")?.Value ?? "Untitled",
-                Type = GetType(element.Name.LocalName)
+                Type = itemType,
+                PageLevel = itemType == OneNoteItemType.Page ? ParsePageLevel(element) : 0
             };
 
+            var childItems = new List<OneNoteItem>();
             foreach (var child in element.Elements())
             {
                 if (child.Name.LocalName == "Section" || child.Name.LocalName == "SectionGroup" || child.Name.LocalName == "Page")
                 {
-                    item.Children.Add(ParseNode(child, ns));
+                    childItems.Add(ParseNode(child, ns));
                 }
             }
+
+            item.Children = BuildPageHierarchy(childItems);
             return item;
         }
 
-        private OneNoteItemType GetType(string localName)
+        public static List<OneNoteItem> BuildPageHierarchy(IEnumerable<OneNoteItem> items)
+        {
+            var result = new List<OneNoteItem>();
+            var ancestorsByLevel = new Dictionary<int, OneNoteItem>();
+
+            foreach (var item in items)
+            {
+                if (item.Type != OneNoteItemType.Page)
+                {
+                    result.Add(item);
+                    ancestorsByLevel.Clear();
+                    continue;
+                }
+
+                var pageLevel = Math.Max(0, item.PageLevel);
+                OneNoteItem? parent = null;
+
+                foreach (var candidateLevel in ancestorsByLevel.Keys.Where(level => level < pageLevel).OrderByDescending(level => level))
+                {
+                    parent = ancestorsByLevel[candidateLevel];
+                    break;
+                }
+
+                if (parent == null)
+                {
+                    result.Add(item);
+                }
+                else if (!parent.Children.Contains(item))
+                {
+                    parent.Children.Add(item);
+                }
+
+                foreach (var level in ancestorsByLevel.Keys.Where(level => level >= pageLevel).ToList())
+                {
+                    ancestorsByLevel.Remove(level);
+                }
+
+                ancestorsByLevel[pageLevel] = item;
+            }
+
+            return result;
+        }
+
+        private static int ParsePageLevel(XElement element)
+        {
+            var pageLevel = element.Attributes()
+                .FirstOrDefault(attribute => attribute.Name.LocalName.Equals("pageLevel", StringComparison.OrdinalIgnoreCase))
+                ?.Value;
+
+            return int.TryParse(pageLevel, out var value) && value >= 0 ? value : 0;
+        }
+
+        private static OneNoteItemType GetType(string localName)
         {
             return localName switch
             {

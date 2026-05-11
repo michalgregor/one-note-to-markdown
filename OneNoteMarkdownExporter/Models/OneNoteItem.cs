@@ -27,6 +27,12 @@ namespace OneNoteMarkdownExporter.Models
         public string Id { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
         public OneNoteItemType Type { get; set; }
+
+        /// <summary>
+        /// OneNote page indentation level. Lower values are closer to the section root.
+        /// Only meaningful for pages; containers keep the default value.
+        /// </summary>
+        public int PageLevel { get; set; } = 0;
         
         public bool IsExpanded 
         { 

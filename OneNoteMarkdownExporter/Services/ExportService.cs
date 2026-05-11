@@ -84,7 +84,7 @@ namespace OneNoteMarkdownExporter.Services
                     return result;
                 }
 
-                result.TotalItems = CountItems(selectedItems);
+                result.TotalItems = ExportSelectionHelper.CountItemsToExport(selectedItems);
                 progress?.Report($"Found {result.TotalItems} item(s) to export.");
 
                 if (options.DryRun)
@@ -212,7 +212,7 @@ namespace OneNoteMarkdownExporter.Services
                 }
             }
 
-            return result.Count > 0 ? result : notebooks.Where(n => HasSelectedDescendants(n)).ToList();
+            return result.Count > 0 ? result : notebooks.Where(ExportSelectionHelper.HasSelectedDescendants).ToList();
         }
 
         private void SelectAllRecursive(List<OneNoteItem> items)
@@ -287,25 +287,12 @@ namespace OneNoteMarkdownExporter.Services
             return false;
         }
 
-        private int CountItems(List<OneNoteItem> items)
-        {
-            int count = 0;
-            foreach (var item in items)
-            {
-                if (item.IsSelected || HasSelectedDescendants(item))
-                {
-                    count++;
-                    count += CountItems(item.Children);
-                }
-            }
-            return count;
-        }
-
-        private void ListItems(List<OneNoteItem> items, IProgress<string>? progress, string indent)
+        private void ListItems(List<OneNoteItem> items, IProgress<string>? progress, string indent, bool isImplicitlySelected = false)
         {
             foreach (var item in items)
             {
-                if (item.IsSelected || HasSelectedDescendants(item))
+                var isSelected = item.IsSelected || isImplicitlySelected;
+                if (isSelected || ExportSelectionHelper.HasSelectedDescendants(item))
                 {
                     var typeStr = item.Type switch
                     {
@@ -316,18 +303,9 @@ namespace OneNoteMarkdownExporter.Services
                         _ => "[Unknown]"
                     };
                     progress?.Report($"{indent}{typeStr} {item.Name}");
-                    ListItems(item.Children, progress, indent + "  ");
+                    ListItems(item.Children, progress, indent + "  ", isSelected);
                 }
             }
-        }
-
-        private bool HasSelectedDescendants(OneNoteItem item)
-        {
-            foreach (var child in item.Children)
-            {
-                if (child.IsSelected || HasSelectedDescendants(child)) return true;
-            }
-            return false;
         }
 
         private void ExportItem(
@@ -338,24 +316,22 @@ namespace OneNoteMarkdownExporter.Services
             ExportOptions options,
             ExportResult result,
             IProgress<string>? progress,
-            CancellationToken token)
+            CancellationToken token,
+            bool isImplicitlySelected = false)
         {
             if (token.IsCancellationRequested) return;
 
-            bool isSelected = item.IsSelected;
-            bool hasSelectedDescendants = HasSelectedDescendants(item);
+            bool isSelected = item.IsSelected || isImplicitlySelected;
+            bool hasSelectedDescendants = ExportSelectionHelper.HasSelectedDescendants(item);
 
             if (!isSelected && !hasSelectedDescendants) return;
 
             string myPath = currentPath;
 
-            // Sanitize name
-            var safeName = string.Join("_", item.Name.Split(Path.GetInvalidFileNameChars()));
-
             if (item.Type != OneNoteItemType.Page)
             {
                 // It's a container
-                myPath = Path.Combine(currentPath, safeName);
+                myPath = ExportPathSanitizer.GetSafeDirectoryPath(currentPath, item.Name, item.Id);
                 if (!Directory.Exists(myPath))
                 {
                     Directory.CreateDirectory(myPath);
@@ -365,9 +341,7 @@ namespace OneNoteMarkdownExporter.Services
                 {
                     if (token.IsCancellationRequested) return;
 
-                    // If parent (this item) is selected, treat child as selected
-                    if (isSelected) child.IsSelected = true;
-                    ExportItem(child, myPath, rootPath, assetsRoot, options, result, progress, token);
+                    ExportItem(child, myPath, rootPath, assetsRoot, options, result, progress, token, isSelected);
                 }
             }
             else
@@ -376,6 +350,22 @@ namespace OneNoteMarkdownExporter.Services
                 if (isSelected)
                 {
                     ExportPage(item, currentPath, rootPath, assetsRoot, options, result, progress, token);
+                }
+
+                if (item.Children.Count > 0)
+                {
+                    myPath = ExportPathSanitizer.GetSafeDirectoryPath(currentPath, item.Name, item.Id);
+                    if (!Directory.Exists(myPath))
+                    {
+                        Directory.CreateDirectory(myPath);
+                    }
+
+                    foreach (var child in item.Children)
+                    {
+                        if (token.IsCancellationRequested) return;
+
+                        ExportItem(child, myPath, rootPath, assetsRoot, options, result, progress, token, isSelected);
+                    }
                 }
             }
         }
@@ -397,8 +387,8 @@ namespace OneNoteMarkdownExporter.Services
                 progress?.Report($"Exporting: {page.Name}");
             }
 
-            var safeName = string.Join("_", page.Name.Split(Path.GetInvalidFileNameChars()));
-            var finalMdPath = Path.Combine(folderPath, $"{safeName}.md");
+            Directory.CreateDirectory(folderPath);
+            var finalMdPath = ExportPathSanitizer.GetSafeMarkdownFilePath(folderPath, page.Name, page.Id);
 
             // Handle file existence based on overwrite setting
             if (File.Exists(finalMdPath))
@@ -407,7 +397,7 @@ namespace OneNoteMarkdownExporter.Services
                 {
                     if (options.Verbose)
                     {
-                        progress?.Report($"  Overwriting existing: {safeName}.md");
+                        progress?.Report($"  Overwriting existing: {Path.GetFileName(finalMdPath)}");
                     }
                 }
                 else
@@ -416,7 +406,7 @@ namespace OneNoteMarkdownExporter.Services
                     int counter = 1;
                     while (File.Exists(finalMdPath))
                     {
-                        finalMdPath = Path.Combine(folderPath, $"{safeName} ({counter}).md");
+                        finalMdPath = ExportPathSanitizer.GetSafeMarkdownFilePath(folderPath, page.Name, page.Id, counter);
                         counter++;
                     }
                 }

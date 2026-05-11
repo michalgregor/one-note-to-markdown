@@ -33,60 +33,74 @@
         <Button x:Name="RefreshButton" Content="Refresh Notebooks" Grid.Row="2" Margin="0,5,10,0" Click="RefreshButton_Click"/>
 
         <!-- Right Column: Configuration & Logs -->
-        <StackPanel Grid.Column="1" Grid.Row="0" Grid.RowSpan="2">
-            <TextBlock Text="Output Directory:" FontWeight="Bold"/>
-            <Grid Margin="0,5,0,10">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <TextBox x:Name="OutputPathBox" IsReadOnly="True" Text=""/>
-                <Button Content="..." Grid.Column="1" Width="30" Margin="5,0,0,0" Click="BrowseButton_Click"/>
-            </Grid>
+        <Grid Grid.Column="1" Grid.Row="0" Grid.RowSpan="3">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
 
-            <TextBlock Text="Assets Folder:" FontWeight="Bold"/>
-            <Grid Margin="0,5,0,10">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <TextBox x:Name="AssetsPathBox" Text=""/>
-                <Button Content="..." Grid.Column="1" Width="30" Margin="5,0,0,0" Click="BrowseAssetsButton_Click"/>
-            </Grid>
+            <StackPanel Grid.Row="0">
+                <TextBlock Text="Output Directory:" FontWeight="Bold"/>
+                <Grid Margin="0,5,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBox x:Name="OutputPathBox" IsReadOnly="True" Text=""/>
+                    <Button Content="..." Grid.Column="1" Width="30" Margin="5,0,0,0" Click="BrowseButton_Click"/>
+                </Grid>
 
-            <CheckBox x:Name="ExpandCollapsedBox" Content="Try to expand collapsed paragraphs (Writable notebooks only)" IsChecked="True" Margin="0,0,0,5"/>
-            <CheckBox x:Name="OverwriteExistingBox" Content="Overwrite existing files (keeps export in sync)" IsChecked="True" Margin="0,0,0,10"/>
-            
-            <!-- Linting option - simple toggle -->
-            <CheckBox x:Name="LintMarkdownBox" Content="Apply Markdown linting (markdownlint-cli)" IsChecked="True" Margin="0,0,0,5"/>
-            
-            <StackPanel Orientation="Horizontal" Margin="20,0,0,10">
-                <Button x:Name="ConfigureLintingButton" Content="Edit .markdownlint.json..." Click="ConfigureLinting_Click" 
-                        Padding="8,2" FontSize="11"/>
-            </StackPanel>
-            
-            <!-- Selection status indicator -->
-            <Border x:Name="SelectionStatusBorder" Background="#FFF3CD" BorderBrush="#FFECB5" BorderThickness="1" CornerRadius="4" Padding="10,8" Margin="0,0,0,10">
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock x:Name="SelectionStatusIcon" Text="⚠" FontSize="14" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                    <TextBlock x:Name="SelectionStatusText" Text="Select notebooks, sections, or pages from the tree to export" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                <TextBlock Text="Assets Folder:" FontWeight="Bold"/>
+                <Grid Margin="0,5,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBox x:Name="AssetsPathBox" Text=""/>
+                    <Button Content="..." Grid.Column="1" Width="30" Margin="5,0,0,0" Click="BrowseAssetsButton_Click"/>
+                </Grid>
+
+                <CheckBox x:Name="ExpandCollapsedBox" Content="Try to expand collapsed paragraphs (Writable notebooks only)" IsChecked="True" Margin="0,0,0,5"/>
+                <CheckBox x:Name="OverwriteExistingBox" Content="Overwrite existing files (keeps export in sync)" IsChecked="True" Margin="0,0,0,10"/>
+
+                <!-- Linting option - simple toggle -->
+                <CheckBox x:Name="LintMarkdownBox" Content="Apply Markdown linting (markdownlint-cli)" IsChecked="True" Margin="0,0,0,5"/>
+
+                <StackPanel Orientation="Horizontal" Margin="20,0,0,10">
+                    <Button x:Name="ConfigureLintingButton" Content="Edit .markdownlint.json..." Click="ConfigureLinting_Click"
+                            Padding="8,2" FontSize="11"/>
                 </StackPanel>
-            </Border>
-            
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <Button x:Name="ExportButton" Content="Start Export" Height="40" Click="ExportButton_Click" FontWeight="Bold" FontSize="14" Margin="0,0,5,0" IsEnabled="False"/>
-                <Button x:Name="StopButton" Content="Stop Export" Grid.Column="1" Height="40" Click="StopButton_Click" FontWeight="Bold" FontSize="14" IsEnabled="False" Margin="5,0,0,0"/>
-            </Grid>
-            
-            <TextBlock Text="Progress:" FontWeight="Bold" Margin="0,20,0,5"/>
-            <ProgressBar x:Name="ExportProgressBar" Height="20" Margin="0,0,0,10"/>
-            
-            <TextBlock Text="Logs:" FontWeight="Bold" Margin="0,0,0,5"/>
-            <TextBox x:Name="LogBox" Height="300" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" IsReadOnly="True" FontFamily="Consolas"/>
-        </StackPanel>
+
+                <!-- Selection status indicator -->
+                <Border x:Name="SelectionStatusBorder" Background="#FFF3CD" BorderBrush="#FFECB5" BorderThickness="1" CornerRadius="4" Padding="10,8" Margin="0,0,0,10">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock x:Name="SelectionStatusIcon" Text="⚠" FontSize="14" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="SelectionStatusText" Text="Select notebooks, sections, or pages from the tree to export" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Button x:Name="ExportButton" Content="Start Export" Height="40" Click="ExportButton_Click" FontWeight="Bold" FontSize="14" Margin="0,0,5,0" IsEnabled="False"/>
+                    <Button x:Name="StopButton" Content="Stop Export" Grid.Column="1" Height="40" Click="StopButton_Click" FontWeight="Bold" FontSize="14" IsEnabled="False" Margin="5,0,0,0"/>
+                </Grid>
+
+                <TextBlock Text="Progress:" FontWeight="Bold" Margin="0,20,0,5"/>
+                <ProgressBar x:Name="ExportProgressBar" Height="20" Minimum="0" Maximum="100" Value="0" Margin="0,0,0,5"/>
+                <TextBlock x:Name="ExportStatusText" Text="Ready." FontWeight="SemiBold" Margin="0,0,0,10"/>
+            </StackPanel>
+
+            <TabControl x:Name="ExportLogTabs" Grid.Row="1">
+                <TabItem x:Name="AllLogsTab" Header="Logs">
+                    <TextBox x:Name="LogBox" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" IsReadOnly="True" FontFamily="Consolas"/>
+                </TabItem>
+                <TabItem x:Name="FailureLogTab" Header="Failures (0)">
+                    <TextBox x:Name="FailureLogBox" Text="No failures." TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" IsReadOnly="True" FontFamily="Consolas"/>
+                </TabItem>
+            </TabControl>
+        </Grid>
     </Grid>
 </Window>

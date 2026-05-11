@@ -19,6 +19,8 @@ namespace OneNoteMarkdownExporter
         private OneNoteXmlToMarkdownConverter _xmlConverter;
         private MarkdownLintCliService _cliLinter;
         private CancellationTokenSource? _cts;
+        private const string NoFailuresMessage = "No failures.";
+        private int _failureLogCount;
 
         public MainWindow()
         {
@@ -186,9 +188,26 @@ namespace OneNoteMarkdownExporter
             var items = NotebookTree.ItemsSource as List<OneNoteItem>;
             if (items == null) return;
 
+            var totalPages = ExportSelectionHelper.CountPagesToExport(items);
+            if (totalPages == 0)
+            {
+                ExportProgressBar.IsIndeterminate = false;
+                ExportProgressBar.Value = 0;
+                SetExportStatus("No pages selected for export.", "#856404");
+                Log("No pages selected for export.");
+                return;
+            }
+
             ExportButton.IsEnabled = false;
             StopButton.IsEnabled = true;
-            ExportProgressBar.IsIndeterminate = true;
+            NotebookTree.IsEnabled = false;
+            RefreshButton.IsEnabled = false;
+            ResetFailureLog();
+            ExportProgressBar.Minimum = 0;
+            ExportProgressBar.Maximum = totalPages;
+            ExportProgressBar.Value = 0;
+            ExportProgressBar.IsIndeterminate = false;
+            SetExportStatus($"Exported 0 of {totalPages} pages...", "#0C5460");
             Log("Starting export...");
 
             bool expandCollapsed = ExpandCollapsedBox.IsChecked == true;
@@ -202,11 +221,22 @@ namespace OneNoteMarkdownExporter
             catch (Exception ex)
             {
                 System.Windows.MessageBox.Show($"Invalid assets folder: {ex.Message}", "Assets Folder", MessageBoxButton.OK, MessageBoxImage.Error);
+                ExportButton.IsEnabled = true;
+                StopButton.IsEnabled = false;
+                NotebookTree.IsEnabled = true;
+                RefreshButton.IsEnabled = true;
+                ExportProgressBar.IsIndeterminate = false;
+                ExportProgressBar.Value = 0;
+                LogGeneralFailure("Preparing assets folder", ex);
+                ExportLogTabs.SelectedItem = FailureLogTab;
+                SetExportStatus("Export failed.", "#721C24");
                 return;
             }
 
             _cts = new CancellationTokenSource();
             var token = _cts.Token;
+            var exportFailed = false;
+            var progressState = new ExportProgressState(totalPages);
 
             if (applyLinting)
             {
@@ -220,7 +250,7 @@ namespace OneNoteMarkdownExporter
                     foreach (var item in items)
                     {
                         if (token.IsCancellationRequested) break;
-                        ExportItem(item, rootPath, rootPath, assetsRoot, expandCollapsed, overwriteExisting, applyLinting, token);
+                        ExportItem(item, rootPath, rootPath, assetsRoot, expandCollapsed, overwriteExisting, applyLinting, token, progressState);
                     }
                     
                     if (token.IsCancellationRequested)
@@ -234,13 +264,45 @@ namespace OneNoteMarkdownExporter
                 }
                 catch (Exception ex)
                 {
-                    Dispatcher.Invoke(() => Log($"Export failed: {ex.Message}"));
+                    exportFailed = true;
+                    Dispatcher.Invoke(() => LogGeneralFailure("Export", ex));
                 }
             });
 
             ExportButton.IsEnabled = true;
             StopButton.IsEnabled = false;
+            NotebookTree.IsEnabled = true;
+            RefreshButton.IsEnabled = true;
             ExportProgressBar.IsIndeterminate = false;
+            if (token.IsCancellationRequested)
+            {
+                ExportProgressBar.Value = progressState.ExportedPages;
+                SetExportStatus($"Export stopped. {progressState.ExportedPages} of {totalPages} pages exported.", "#856404");
+            }
+            else if (exportFailed || progressState.FailedPages > 0)
+            {
+                ExportProgressBar.Value = progressState.ExportedPages;
+                if (progressState.FailedPages > 0)
+                {
+                    SetExportStatus($"Export finished with errors. {progressState.ExportedPages} of {totalPages} pages exported, {progressState.FailedPages} failed.", "#721C24");
+                }
+                else
+                {
+                    SetExportStatus($"Export failed. {progressState.ExportedPages} of {totalPages} pages exported.", "#721C24");
+                }
+            }
+            else
+            {
+                ExportProgressBar.Value = progressState.TotalPages;
+                SetExportStatus($"Export completed successfully. {progressState.ExportedPages} of {totalPages} pages exported.", "#155724");
+            }
+
+            if (_failureLogCount > 0)
+            {
+                ExportLogTabs.SelectedItem = FailureLogTab;
+            }
+
+            UpdateSelectionStatus();
             _cts = null;
         }
 
@@ -284,24 +346,21 @@ namespace OneNoteMarkdownExporter
             }
         }
 
-        private void ExportItem(OneNoteItem item, string currentPath, string rootPath, string assetsRoot, bool expandCollapsed, bool overwriteExisting, bool applyLinting, CancellationToken token)
+        private void ExportItem(OneNoteItem item, string currentPath, string rootPath, string assetsRoot, bool expandCollapsed, bool overwriteExisting, bool applyLinting, CancellationToken token, ExportProgressState progressState, bool isImplicitlySelected = false)
         {
             if (token.IsCancellationRequested) return;
 
-            bool isSelected = item.IsSelected;
-            bool hasSelectedDescendants = HasSelectedDescendants(item);
+            bool isSelected = item.IsSelected || isImplicitlySelected;
+            bool hasSelectedDescendants = ExportSelectionHelper.HasSelectedDescendants(item);
 
             if (!isSelected && !hasSelectedDescendants) return;
 
             string myPath = currentPath;
             
-            // Sanitize name
-            var safeName = string.Join("_", item.Name.Split(Path.GetInvalidFileNameChars()));
-            
             if (item.Type != OneNoteItemType.Page)
             {
                 // It's a container
-                myPath = Path.Combine(currentPath, safeName);
+                myPath = ExportPathSanitizer.GetSafeDirectoryPath(currentPath, item.Name, item.Id);
                 if (!Directory.Exists(myPath))
                 {
                     Directory.CreateDirectory(myPath);
@@ -311,9 +370,7 @@ namespace OneNoteMarkdownExporter
                 {
                     if (token.IsCancellationRequested) return;
 
-                    // If parent (this item) is selected, treat child as selected
-                    if (isSelected) child.IsSelected = true; 
-                    ExportItem(child, myPath, rootPath, assetsRoot, expandCollapsed, overwriteExisting, applyLinting, token);
+                    ExportItem(child, myPath, rootPath, assetsRoot, expandCollapsed, overwriteExisting, applyLinting, token, progressState, isSelected);
                 }
             }
             else
@@ -321,30 +378,100 @@ namespace OneNoteMarkdownExporter
                 // It's a page
                 if (isSelected)
                 {
-                    ExportPage(item, currentPath, rootPath, assetsRoot, expandCollapsed, overwriteExisting, applyLinting, token);
+                    var exported = ExportPage(item, currentPath, rootPath, assetsRoot, expandCollapsed, overwriteExisting, applyLinting, token);
+                    if (exported)
+                    {
+                        progressState.ExportedPages++;
+                    }
+                    else if (!token.IsCancellationRequested)
+                    {
+                        progressState.FailedPages++;
+                    }
+
+                    Dispatcher.Invoke(() => UpdateExportProgress(progressState));
+                }
+
+                if (item.Children.Count > 0)
+                {
+                    myPath = ExportPathSanitizer.GetSafeDirectoryPath(currentPath, item.Name, item.Id);
+                    if (!Directory.Exists(myPath))
+                    {
+                        Directory.CreateDirectory(myPath);
+                    }
+
+                    foreach (var child in item.Children)
+                    {
+                        if (token.IsCancellationRequested) return;
+
+                        ExportItem(child, myPath, rootPath, assetsRoot, expandCollapsed, overwriteExisting, applyLinting, token, progressState, isSelected);
+                    }
                 }
             }
         }
 
-        private bool HasSelectedDescendants(OneNoteItem item)
+        private void UpdateExportProgress(ExportProgressState progressState)
         {
-            foreach (var child in item.Children)
-            {
-                if (child.IsSelected || HasSelectedDescendants(child)) return true;
-            }
-            return false;
+            ExportProgressBar.Value = progressState.ExportedPages;
+            var failedText = progressState.FailedPages > 0 ? $", {progressState.FailedPages} failed" : "";
+            SetExportStatus($"Exported {progressState.ExportedPages} of {progressState.TotalPages} pages{failedText}...", "#0C5460");
         }
 
-        private void ExportPage(OneNoteItem page, string folderPath, string rootPath, string assetsRoot, bool expandCollapsed, bool overwriteExisting, bool applyLinting, CancellationToken token)
+        private void SetExportStatus(string message, string colorHex)
         {
-            if (_oneNoteService == null) return;
-            if (token.IsCancellationRequested) return;
+            ExportStatusText.Text = message;
+            ExportStatusText.Foreground = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(colorHex));
+        }
+
+        private void ResetFailureLog()
+        {
+            _failureLogCount = 0;
+            FailureLogTab.Header = "Failures (0)";
+            FailureLogBox.Text = NoFailuresMessage;
+            ExportLogTabs.SelectedItem = AllLogsTab;
+        }
+
+        private void LogPageFailure(OneNoteItem page, string targetPath, Exception ex)
+        {
+            var failureDetails = ExportFailureFormatter.FormatPageFailure(page, targetPath, ex);
+            Log($"Export failure:\n{failureDetails}");
+            AppendFailureEntry(failureDetails);
+        }
+
+        private void LogGeneralFailure(string operation, Exception ex)
+        {
+            var failureDetails = ExportFailureFormatter.FormatGeneralFailure(operation, ex);
+            Log($"Export failure:\n{failureDetails}");
+            AppendFailureEntry(failureDetails);
+        }
+
+        private void AppendFailureEntry(string failureDetails)
+        {
+            if (!FailureLogBox.Dispatcher.CheckAccess())
+            {
+                FailureLogBox.Dispatcher.Invoke(() => AppendFailureEntry(failureDetails));
+                return;
+            }
+
+            if (FailureLogBox.Text == NoFailuresMessage)
+            {
+                FailureLogBox.Clear();
+            }
+
+            _failureLogCount++;
+            FailureLogTab.Header = $"Failures ({_failureLogCount})";
+            FailureLogBox.AppendText($"{DateTime.Now:HH:mm:ss}: {failureDetails}{Environment.NewLine}{Environment.NewLine}");
+            FailureLogBox.ScrollToEnd();
+        }
+
+        private bool ExportPage(OneNoteItem page, string folderPath, string rootPath, string assetsRoot, bool expandCollapsed, bool overwriteExisting, bool applyLinting, CancellationToken token)
+        {
+            if (_oneNoteService == null) return false;
+            if (token.IsCancellationRequested) return false;
 
             Dispatcher.Invoke(() => Log($"Exporting Page: {page.Name}"));
 
-            var safeName = string.Join("_", page.Name.Split(Path.GetInvalidFileNameChars()));
-            
-            var finalMdPath = Path.Combine(folderPath, $"{safeName}.md");
+            Directory.CreateDirectory(folderPath);
+            var finalMdPath = ExportPathSanitizer.GetSafeMarkdownFilePath(folderPath, page.Name, page.Id);
             
             // Handle file existence based on overwrite setting
             if (File.Exists(finalMdPath))
@@ -352,7 +479,7 @@ namespace OneNoteMarkdownExporter
                 if (overwriteExisting)
                 {
                     // Will overwrite below
-                    Dispatcher.Invoke(() => Log($"  Overwriting existing: {safeName}.md"));
+                    Dispatcher.Invoke(() => Log($"  Overwriting existing: {Path.GetFileName(finalMdPath)}"));
                 }
                 else
                 {
@@ -360,7 +487,7 @@ namespace OneNoteMarkdownExporter
                     int counter = 1;
                     while (File.Exists(finalMdPath))
                     {
-                        finalMdPath = Path.Combine(folderPath, $"{safeName} ({counter}).md");
+                        finalMdPath = ExportPathSanitizer.GetSafeMarkdownFilePath(folderPath, page.Name, page.Id, counter);
                         counter++;
                     }
                 }
@@ -397,11 +524,25 @@ namespace OneNoteMarkdownExporter
                 File.WriteAllText(finalMdPath, markdown);
                 
                 Dispatcher.Invoke(() => Log($"  Exported successfully: {page.Name}"));
+                return true;
             }
             catch (Exception ex)
             {
-                Dispatcher.Invoke(() => Log($"  Error exporting page '{page.Name}': {ex.Message}"));
+                Dispatcher.Invoke(() => LogPageFailure(page, finalMdPath, ex));
+                return false;
             }
+        }
+
+        private class ExportProgressState
+        {
+            public ExportProgressState(int totalPages)
+            {
+                TotalPages = totalPages;
+            }
+
+            public int TotalPages { get; }
+            public int ExportedPages { get; set; }
+            public int FailedPages { get; set; }
         }
 
         private static bool PathsEqual(string firstPath, string secondPath)

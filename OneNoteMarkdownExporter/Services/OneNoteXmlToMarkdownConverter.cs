@@ -97,32 +97,14 @@ namespace OneNoteMarkdownExporter.Services
             return markdown;
         }
 
-        /// <summary>
-        /// Sanitizes a page prefix for use in filenames by removing invalid characters.
-        /// </summary>
         private static string SanitizePrefix(string? prefix)
         {
             if (string.IsNullOrWhiteSpace(prefix))
-                return "";
-            
-            // Remove characters that are invalid in filenames
-            var invalidChars = Path.GetInvalidFileNameChars();
-            var sanitized = new StringBuilder();
-            
-            foreach (var c in prefix)
             {
-                if (!invalidChars.Contains(c) && c != ' ')
-                    sanitized.Append(c);
-                else if (c == ' ')
-                    sanitized.Append('_'); // Replace spaces with underscores
+                return "";
             }
-            
-            // Trim and limit length to avoid overly long filenames
-            var result = sanitized.ToString().Trim('_');
-            if (result.Length > 50)
-                result = result.Substring(0, 50);
-            
-            return result;
+
+            return ExportPathSanitizer.SanitizeComponent(prefix, "page", prefix).Replace(' ', '_');
         }
 
         /// <summary>
@@ -469,9 +451,7 @@ namespace OneNoteMarkdownExporter.Services
 
                 // Generate unique filename with page prefix to avoid collisions across pages
                 _imageCounter++;
-                var fileName = string.IsNullOrEmpty(_pagePrefix)
-                    ? $"image_{_imageCounter:D4}{extension}"
-                    : $"{_pagePrefix}_image_{_imageCounter:D4}{extension}";
+                var fileName = ExportPathSanitizer.GetSafeAssetFileName(_assetsFolder, _pagePrefix, _imageCounter, extension);
                 var filePath = Path.Combine(_assetsFolder, fileName);
 
                 // Ensure assets folder exists
