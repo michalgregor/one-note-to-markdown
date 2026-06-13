@@ -59,6 +59,12 @@ namespace OneNoteMarkdownExporter.Services
         public List<string>? PageIds { get; set; }
 
         /// <summary>
+        /// If true, preserve font (foreground) text colors as inline HTML in the exported Markdown.
+        /// Off by default because colored text is often visual noise in notes.
+        /// </summary>
+        public bool IncludeFontColors { get; set; } = false;
+
+        /// <summary>
         /// If true, show what would be exported without actually exporting.
         /// </summary>
         public bool DryRun { get; set; } = false;

@@ -26,6 +26,12 @@
     <PackageReference Include="Interop.Microsoft.Office.Interop.OneNote" Version="1.1.0.2" />
   </ItemGroup>
 
+  <!-- MathML -> LaTeX stylesheets (xsltml, MIT) embedded so they ship inside the assembly -->
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\MathML\*.xsl" />
+    <EmbeddedResource Include="Resources\MathML\README" />
+  </ItemGroup>
+
   <!-- Copy resources folder (node.exe, node_modules, config) to output -->
   <ItemGroup>
     <None Include="resources\**\*" Exclude="resources\package.json;resources\package-lock.json">

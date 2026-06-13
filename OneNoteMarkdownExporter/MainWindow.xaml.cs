@@ -29,7 +29,8 @@ namespace OneNoteMarkdownExporter
             _xmlConverter = new OneNoteXmlToMarkdownConverter();
             _cliLinter = new MarkdownLintCliService();
             Loaded += MainWindow_Loaded;
-            
+            Closed += MainWindow_Closed;
+
             // Subscribe to selection changes
             OneNoteItem.SelectionChanged += OnSelectionChanged;
             
@@ -120,6 +121,12 @@ namespace OneNoteMarkdownExporter
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
             LoadNotebooks();
+        }
+
+        private void MainWindow_Closed(object? sender, EventArgs e)
+        {
+            // If this app caused OneNote to launch, close it again so it isn't left running.
+            try { _oneNoteService?.ShutdownIfLaunched(); } catch { /* best effort */ }
         }
 
         private void LoadNotebooks()
@@ -213,6 +220,7 @@ namespace OneNoteMarkdownExporter
             bool expandCollapsed = ExpandCollapsedBox.IsChecked == true;
             bool overwriteExisting = OverwriteExistingBox.IsChecked == true;
             bool applyLinting = LintMarkdownBox.IsChecked == true;
+            _xmlConverter.IncludeFontColors = FontColorsBox.IsChecked == true;
             string assetsRoot;
             try
             {

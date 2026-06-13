@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Xml.Linq;
 using Microsoft.Office.Interop.OneNote;
 using OneNoteMarkdownExporter.Models;
@@ -8,13 +9,25 @@ using System.Linq;
 
 namespace OneNoteMarkdownExporter.Services
 {
-    public class OneNoteService
+    public class OneNoteService : IOneNoteService
     {
+        private const string OneNoteProcessName = "ONENOTE";
+        private const int SW_MINIMIZE = 6;
+
+        [DllImport("user32.dll")]
+        private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
         private Microsoft.Office.Interop.OneNote.Application _oneNoteApp;
         private const string OneNoteNamespace = "http://schemas.microsoft.com/office/onenote/2013/onenote";
 
+        // PIDs of OneNote processes that were already running before we connected. If none were running,
+        // we assume our COM connection launched OneNote and may minimize/close it again afterwards.
+        private readonly HashSet<int> _preExistingPids;
+        private bool _shutdownDone;
+
         public OneNoteService()
         {
+            _preExistingPids = GetOneNotePids();
             try
             {
                 _oneNoteApp = new Microsoft.Office.Interop.OneNote.Application();
@@ -22,6 +35,92 @@ namespace OneNoteMarkdownExporter.Services
             catch (COMException ex)
             {
                 throw new Exception("Could not initialize OneNote. Ensure OneNote Desktop is installed and running.", ex);
+            }
+        }
+
+        public bool LaunchedOneNote => _preExistingPids.Count == 0;
+
+        private static HashSet<int> GetOneNotePids()
+        {
+            try
+            {
+                return Process.GetProcessesByName(OneNoteProcessName).Select(p => p.Id).ToHashSet();
+            }
+            catch
+            {
+                return new HashSet<int>();
+            }
+        }
+
+        private IEnumerable<Process> GetProcessesWeLaunched()
+        {
+            Process[] current;
+            try { current = Process.GetProcessesByName(OneNoteProcessName); }
+            catch { yield break; }
+
+            foreach (var process in current)
+            {
+                if (!_preExistingPids.Contains(process.Id))
+                {
+                    yield return process;
+                }
+            }
+        }
+
+        public void MinimizeWindowIfLaunched()
+        {
+            if (!LaunchedOneNote) return;
+            try
+            {
+                foreach (var process in GetProcessesWeLaunched())
+                {
+                    var handle = process.MainWindowHandle;
+                    if (handle != IntPtr.Zero)
+                    {
+                        ShowWindow(handle, SW_MINIMIZE);
+                    }
+                }
+            }
+            catch
+            {
+                // Minimizing is best-effort cosmetic behavior.
+            }
+        }
+
+        public void ShutdownIfLaunched()
+        {
+            if (_shutdownDone) return;
+            _shutdownDone = true;
+
+            // If OneNote was already running when we started, leave the user's session untouched.
+            if (!LaunchedOneNote) return;
+
+            // Release our COM reference first so we are no longer keeping OneNote alive, then ask its
+            // window to close gracefully. We deliberately never force-kill OneNote: an abrupt kill can
+            // leave it unable to be COM-activated again afterwards.
+            try
+            {
+                if (_oneNoteApp != null)
+                {
+                    Marshal.FinalReleaseComObject(_oneNoteApp);
+                    _oneNoteApp = null!;
+                }
+            }
+            catch
+            {
+                // Best-effort release.
+            }
+
+            try
+            {
+                foreach (var process in GetProcessesWeLaunched())
+                {
+                    try { process.CloseMainWindow(); } catch { /* best-effort graceful close */ }
+                }
+            }
+            catch
+            {
+                // Closing is best-effort.
             }
         }
 

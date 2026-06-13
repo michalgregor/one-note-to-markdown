@@ -33,7 +33,9 @@ Go to [GitHub Releases](https://github.com/segunak/one-note-to-markdown/releases
 - **Tree view selection** - Pick entire notebooks, specific sections, or individual pages
 - **Subpage hierarchy** - OneNote subpages export into nested folders
 - **Clean Markdown output** - Proper formatting, no leftover HTML tags
+- **Rich text formatting** - Bold, italic, strikethrough, highlights (Obsidian `==`/colored `<mark>`), underline, super/subscript, headings, and to-do checkboxes (see [Formatting support](#formatting-support))
 - **Image extraction** - Embedded images saved to a configurable assets folder with relative paths
+- **File attachments** - PDFs, Office documents, and other inserted/media files are copied to the assets folder and linked (previously dropped silently)
 - **Sync-friendly** - "Overwrite existing files" option keeps exports in sync with your notes
 - **Markdown linting** - Automatic cleanup via bundled markdownlint-cli (configurable)
 
@@ -103,6 +105,12 @@ OneNoteMarkdownExporter.exe --help
 | `--assets-folder <path>` | Folder for exported images/assets (default: `<output>\assets`) |
 | `--overwrite` | Overwrite existing files instead of creating numbered copies |
 
+#### Formatting
+
+| Option | Description |
+|--------|-------------|
+| `--font-colors` | Preserve font (text) colors as inline HTML `<span style="color:…">` (off by default) |
+
 #### Linting
 
 | Option | Description |
@@ -154,6 +162,30 @@ OneNoteMarkdownExporter.exe --all --output "D:\Backups\OneNote" --assets-folder 
 ### Assets Folder
 
 Exported images are saved to `<output>\assets` by default. Use the GUI assets folder field or the CLI `--assets-folder <path>` option to choose a different folder. Relative paths are resolved from the output directory, and absolute paths are used as provided. Missing folders are created automatically. Existing asset folders are reused, and generated asset files with the same names are overwritten on later exports. Paths where the assets folder itself would be an existing file are rejected. Markdown image links are generated relative to each exported page.
+
+### Attachments
+
+Inserted files (PDFs, Office documents, etc.) and embedded media files are copied into the assets folder and linked from the Markdown using their original display name. When an attachment's binary isn't available locally, a clear `[Attachment unavailable: ...]` placeholder is written instead of silently dropping it.
+
+### Formatting support
+
+OneNote rich-text formatting is converted to Markdown (with Obsidian in mind):
+
+| OneNote | Markdown output |
+|---------|-----------------|
+| Bold / italic / strikethrough | `**bold**` / `*italic*` / `~~strikethrough~~` |
+| Highlight (default yellow) | `==text==` (Obsidian highlight) |
+| Highlight (other colors) | `<mark style="background:#hex">text</mark>` (Obsidian renders the color) |
+| Underline | `<u>text</u>` |
+| Superscript / subscript | `<sup>` / `<sub>` |
+| Heading styles (Heading 1–6) | `#` … `######` |
+| To-Do tag | `- [ ]` / `- [x]` task list items |
+| Equations | MathML → LaTeX (`$…$` inline, `$$…$$` block), via the [xsltml](https://xsltml.sourceforge.net/) library |
+| Font (text) color | dropped by default; `<span style="color:…">` when [`--font-colors`](#formatting) / the GUI checkbox is enabled |
+
+Images keep their original display width (`![image|width](…)`), and multi-line table cells stay intact (joined with `<br>`).
+
+Links, tables, lists, images, and file attachments are converted as well.
 
 ### Subpages
 

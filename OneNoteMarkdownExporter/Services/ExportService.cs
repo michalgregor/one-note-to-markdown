@@ -14,13 +14,22 @@ namespace OneNoteMarkdownExporter.Services
     /// </summary>
     public class ExportService
     {
-        private readonly OneNoteService _oneNoteService;
+        private readonly IOneNoteService _oneNoteService;
         private readonly OneNoteXmlToMarkdownConverter _xmlConverter;
         private readonly MarkdownLintCliService _cliLinter;
 
         public ExportService()
+            : this(new OneNoteService())
         {
-            _oneNoteService = new OneNoteService();
+        }
+
+        /// <summary>
+        /// Creates an export service with an explicit OneNote service. Primarily used for testing
+        /// with a fake <see cref="IOneNoteService"/> that does not require a live OneNote instance.
+        /// </summary>
+        public ExportService(IOneNoteService oneNoteService)
+        {
+            _oneNoteService = oneNoteService;
             _xmlConverter = new OneNoteXmlToMarkdownConverter();
             _cliLinter = new MarkdownLintCliService();
         }
@@ -70,6 +79,8 @@ namespace OneNoteMarkdownExporter.Services
                 {
                     Directory.CreateDirectory(options.OutputPath);
                 }
+
+                _xmlConverter.IncludeFontColors = options.IncludeFontColors;
 
                 // Get notebook hierarchy
                 progress?.Report("Loading OneNote hierarchy...");
@@ -129,6 +140,7 @@ namespace OneNoteMarkdownExporter.Services
         /// </summary>
         public string ExportPageToString(string pageId, ExportOptions options)
         {
+            _xmlConverter.IncludeFontColors = options.IncludeFontColors;
             var pageXml = _oneNoteService.GetPageContent(pageId);
             
             // Create a binary content fetcher for images that aren't embedded

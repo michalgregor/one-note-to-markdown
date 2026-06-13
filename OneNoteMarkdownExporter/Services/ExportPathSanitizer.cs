@@ -79,6 +79,19 @@ namespace OneNoteMarkdownExporter.Services
             return FitComponentToPath(assetsFolder, stem, normalizedExtension, pagePrefix ?? imageStem, MaxWin32PathLength);
         }
 
+        public static string GetSafeAttachmentFileName(string assetsFolder, string? pagePrefix, string? preferredName, int attachmentIndex, string extension)
+        {
+            var normalizedExtension = NormalizeExtension(extension);
+            var nameStem = SanitizeComponent(Path.GetFileNameWithoutExtension(preferredName ?? string.Empty), "attachment", preferredName);
+            // Always include the index so two attachments with the same name on one page don't collide.
+            var indexedStem = $"{nameStem}_{attachmentIndex:D4}";
+            var stem = string.IsNullOrWhiteSpace(pagePrefix)
+                ? indexedStem
+                : $"{SanitizeComponent(pagePrefix, "page", pagePrefix)}_{indexedStem}";
+
+            return FitComponentToPath(assetsFolder, stem, normalizedExtension, pagePrefix + preferredName + attachmentIndex, MaxWin32PathLength);
+        }
+
         private static string SanitizeRawComponent(string? name)
         {
             if (string.IsNullOrWhiteSpace(name))

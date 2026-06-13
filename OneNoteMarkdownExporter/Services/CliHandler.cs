@@ -39,6 +39,7 @@ namespace OneNoteMarkdownExporter.Services
             {
                 "--all", "--notebook", "--section", "--page", "--output", "-o",
                 "--assets-folder", "--overwrite", "--no-lint", "--lint-config",
+                "--font-colors",
                 "--list", "--dry-run", "--verbose", "-v", "--quiet", "-q",
                 "--help", "-h", "-?", "--version"
             };
@@ -104,6 +105,11 @@ namespace OneNoteMarkdownExporter.Services
                 Description = "Path to custom markdownlint configuration file"
             };
 
+            var fontColorsOption = new Option<bool>("--font-colors")
+            {
+                Description = "Preserve font (text) colors as inline HTML (off by default)"
+            };
+
             var listOption = new Option<bool>("--list")
             {
                 Description = "List available notebooks, sections, and pages without exporting"
@@ -134,6 +140,7 @@ namespace OneNoteMarkdownExporter.Services
             rootCommand.Options.Add(overwriteOption);
             rootCommand.Options.Add(noLintOption);
             rootCommand.Options.Add(lintConfigOption);
+            rootCommand.Options.Add(fontColorsOption);
             rootCommand.Options.Add(listOption);
             rootCommand.Options.Add(dryRunOption);
             rootCommand.Options.Add(verboseOption);
@@ -152,6 +159,7 @@ namespace OneNoteMarkdownExporter.Services
                     Overwrite = result.GetValue(overwriteOption),
                     ApplyLinting = !result.GetValue(noLintOption),
                     LintConfigPath = result.GetValue(lintConfigOption),
+                    IncludeFontColors = result.GetValue(fontColorsOption),
                     DryRun = result.GetValue(dryRunOption),
                     Verbose = result.GetValue(verboseOption),
                     Quiet = result.GetValue(quietOption)
@@ -167,7 +175,7 @@ namespace OneNoteMarkdownExporter.Services
 
         private static async Task<int> ExecuteAsync(ExportOptions options, bool listMode, CancellationToken cancellationToken)
         {
-            var exportService = new ExportService();
+            OneNoteService? oneNoteService = null;
 
             // Console progress reporter
             var progress = new Progress<string>(message =>
@@ -180,6 +188,9 @@ namespace OneNoteMarkdownExporter.Services
 
             try
             {
+                oneNoteService = new OneNoteService();
+                var exportService = new ExportService(oneNoteService);
+
                 // List mode - just show hierarchy
                 if (listMode)
                 {
@@ -251,6 +262,11 @@ namespace OneNoteMarkdownExporter.Services
                     Console.Error.WriteLine(ex.StackTrace);
                 }
                 return 1;
+            }
+            finally
+            {
+                // If we caused OneNote to launch, close it again so it isn't left running.
+                try { oneNoteService?.ShutdownIfLaunched(); } catch { /* best effort */ }
             }
         }
 
