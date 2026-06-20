@@ -11,6 +11,12 @@ namespace OneNoteMarkdownExporter.Services
         Page
     }
 
+    public enum DateMetadataMode
+    {
+        None,
+        Yaml
+    }
+
     /// <summary>
     /// Options for controlling the export process.
     /// Used by both GUI and CLI modes.
@@ -23,7 +29,7 @@ namespace OneNoteMarkdownExporter.Services
         public string OutputPath { get; set; } = string.Empty;
 
         /// <summary>
-        /// Folder where exported assets will be saved. If null/empty, uses OutputPath\assets.
+        /// Folder where exported assets will be saved. If null/empty, uses OutputPath\_assets.
         /// Relative paths are resolved from the output directory.
         /// </summary>
         public string? AssetsFolderPath { get; set; }
@@ -86,6 +92,9 @@ namespace OneNoteMarkdownExporter.Services
         /// If true, suppress all output except errors.
         /// </summary>
         public bool Quiet { get; set; } = false;
+
+        public bool PreserveDates { get; set; } = true;
+        public DateMetadataMode DateMetadataMode { get; set; } = DateMetadataMode.None;
 
         /// <summary>
         /// Creates default export options.

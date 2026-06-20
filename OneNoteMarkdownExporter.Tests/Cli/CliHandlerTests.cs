@@ -303,6 +303,32 @@ public class CliHandlerTests
     }
 
     [Fact]
+    public void ShouldRunCli_WithNoPreserveDatesFlag_ReturnsTrue()
+    {
+        // Arrange
+        var args = new[] { "--no-preserve-dates" };
+
+        // Act
+        var result = CliHandler.ShouldRunCli(args);
+
+        // Assert
+        result.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ShouldRunCli_WithDateMetadataFlag_ReturnsTrue()
+    {
+        // Arrange
+        var args = new[] { "--date-metadata", "yaml" };
+
+        // Act
+        var result = CliHandler.ShouldRunCli(args);
+
+        // Assert
+        result.Should().BeTrue();
+    }
+
+    [Fact]
     public void ShouldRunCli_WithLintConfigFlag_ReturnsTrue()
     {
         // Arrange
@@ -412,6 +438,32 @@ public class CliHandlerTests
     public void TryParseAssetOrganizationMode_WithUnknownValue_ReturnsFalse()
     {
         var result = CliHandler.TryParseAssetOrganizationMode("folder", out _);
+
+        result.Should().BeFalse();
+    }
+
+    #endregion
+
+    #region Date Metadata Parsing Tests
+
+    [Theory]
+    [InlineData(null, DateMetadataMode.None)]
+    [InlineData("", DateMetadataMode.None)]
+    [InlineData("none", DateMetadataMode.None)]
+    [InlineData("yaml", DateMetadataMode.Yaml)]
+    [InlineData("YAML", DateMetadataMode.Yaml)]
+    public void TryParseDateMetadataMode_WithKnownValue_ReturnsTrue(string? value, DateMetadataMode expected)
+    {
+        var result = CliHandler.TryParseDateMetadataMode(value, out var mode);
+
+        result.Should().BeTrue();
+        mode.Should().Be(expected);
+    }
+
+    [Fact]
+    public void TryParseDateMetadataMode_WithUnknownValue_ReturnsFalse()
+    {
+        var result = CliHandler.TryParseDateMetadataMode("json", out _);
 
         result.Should().BeFalse();
     }

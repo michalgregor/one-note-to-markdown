@@ -226,6 +226,38 @@ public class ExportOptionsTests
         options.AssetOrganizationMode.Should().Be(AssetOrganizationMode.Centralized);
     }
 
+    [Fact]
+    public void PreserveDates_DefaultsToTrue()
+    {
+        var options = new ExportOptions();
+
+        options.PreserveDates.Should().BeTrue();
+    }
+
+    [Fact]
+    public void DateMetadataMode_DefaultsToNone()
+    {
+        var options = new ExportOptions();
+
+        options.DateMetadataMode.Should().Be(DateMetadataMode.None);
+    }
+
+    [Fact]
+    public void CreateDefault_ReturnsOptionsWithDatePreservationEnabled()
+    {
+        var options = ExportOptions.CreateDefault();
+
+        options.PreserveDates.Should().BeTrue();
+    }
+
+    [Fact]
+    public void CreateDefault_ReturnsOptionsWithDateMetadataNone()
+    {
+        var options = ExportOptions.CreateDefault();
+
+        options.DateMetadataMode.Should().Be(DateMetadataMode.None);
+    }
+
     [Theory]
     [InlineData(AssetOrganizationMode.Notebook)]
     [InlineData(AssetOrganizationMode.Section)]

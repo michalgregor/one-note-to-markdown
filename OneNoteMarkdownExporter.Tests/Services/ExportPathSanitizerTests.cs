@@ -107,6 +107,26 @@ public class ExportPathSanitizerTests
     }
 
     [Fact]
+    public void GetSafeMarkdownFilePath_WithSlashInPageName_ReplacesSlashWithDash()
+    {
+        var folderPath = CreateTempExportPath();
+
+        var result = ExportPathSanitizer.GetSafeMarkdownFilePath(folderPath, "Low/No Code Platforms", "page-id");
+
+        Path.GetFileName(result).Should().Be("Low-No Code Platforms.md");
+    }
+
+    [Fact]
+    public void GetSafeMarkdownFilePath_WithBackslashInPageName_ReplacesBackslashWithDash()
+    {
+        var folderPath = CreateTempExportPath();
+
+        var result = ExportPathSanitizer.GetSafeMarkdownFilePath(folderPath, @"Low\No Code Platforms", "page-id");
+
+        Path.GetFileName(result).Should().Be("Low-No Code Platforms.md");
+    }
+
+    [Fact]
     public void GetSafeMarkdownFilePath_WithPathAboveBudget_ShortensFileName()
     {
         var folderPath = CreateTempExportPath();
@@ -163,6 +183,16 @@ public class ExportPathSanitizerTests
         var result = ExportPathSanitizer.GetSafeDirectoryPath(rootPath, "Parent Folder.", "parent-id");
 
         Path.GetFileName(result).Should().Be("Parent Folder");
+    }
+
+    [Fact]
+    public void GetSafeDirectoryPath_WithSlashInComponent_ReplacesSlashWithDash()
+    {
+        var rootPath = CreateTempExportPath();
+
+        var result = ExportPathSanitizer.GetSafeDirectoryPath(rootPath, "Low/No Code", "component-id");
+
+        Path.GetFileName(result).Should().Be("Low-No Code");
     }
 
     [Fact]

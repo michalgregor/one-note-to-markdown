@@ -246,7 +246,9 @@ namespace OneNoteMarkdownExporter
                 OutputPath = rootPath,
                 AssetOrganizationMode = GetSelectedAssetOrganizationMode(),
                 Overwrite = OverwriteExistingBox.IsChecked == true,
-                ApplyLinting = LintMarkdownBox.IsChecked == true
+                ApplyLinting = LintMarkdownBox.IsChecked == true,
+                PreserveDates = PreserveDatesBox.IsChecked == true,
+                DateMetadataMode = YamlMetadataBox.IsChecked == true ? DateMetadataMode.Yaml : DateMetadataMode.None
             };
 
             if (options.AssetOrganizationMode == AssetOrganizationMode.Centralized)
@@ -382,6 +384,9 @@ namespace OneNoteMarkdownExporter
         {
             switch (update.Kind)
             {
+                case ExportProgressKind.Warning:
+                    Log(update.Message);
+                    break;
                 case ExportProgressKind.PageExported:
                     Log(update.Message);
                     UpdateExportProgress(update.ExportedPages, update.FailedPages, update.TotalPages);

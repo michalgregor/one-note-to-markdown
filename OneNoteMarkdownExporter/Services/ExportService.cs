@@ -59,20 +59,26 @@ namespace OneNoteMarkdownExporter.Services
         private readonly IOneNoteExportSource _oneNoteService;
         private readonly IMarkdownContentConverter _xmlConverter;
         private readonly IMarkdownLintService _cliLinter;
+        private readonly IFileTimestampService _timestampService;
+        private readonly IYamlFrontMatterService _yamlFrontMatterService;
 
         public ExportService()
-            : this(new OneNoteService(), new OneNoteXmlToMarkdownConverter(), new MarkdownLintCliService())
+            : this(new OneNoteService(), new OneNoteXmlToMarkdownConverter(), new MarkdownLintCliService(), new FileTimestampService(), new YamlFrontMatterService())
         {
         }
 
         public ExportService(
             IOneNoteExportSource oneNoteService,
             IMarkdownContentConverter xmlConverter,
-            IMarkdownLintService cliLinter)
+            IMarkdownLintService cliLinter,
+            IFileTimestampService? timestampService = null,
+            IYamlFrontMatterService? yamlFrontMatterService = null)
         {
             _oneNoteService = oneNoteService;
             _xmlConverter = xmlConverter;
             _cliLinter = cliLinter;
+            _timestampService = timestampService ?? new FileTimestampService();
+            _yamlFrontMatterService = yamlFrontMatterService ?? new YamlFrontMatterService();
         }
 
         /// <summary>
@@ -561,6 +567,11 @@ namespace OneNoteMarkdownExporter.Services
                 // Use page name as prefix to avoid image filename collisions across pages
                 var markdown = _xmlConverter.Convert(pageXml, pageContext.AssetsFolderPath, pageContext.RelativeAssetsPath, binaryFetcher, page.Name);
 
+                if (options.DateMetadataMode == DateMetadataMode.Yaml)
+                {
+                    markdown = _yamlFrontMatterService.AddFrontMatter(markdown, page);
+                }
+
                 // Apply linting if enabled (using markdownlint-cli)
                 if (options.ApplyLinting)
                 {
@@ -576,6 +587,7 @@ namespace OneNoteMarkdownExporter.Services
                 }
 
                 File.WriteAllText(finalMdPath, markdown);
+                ApplyPageTimestamps(finalMdPath, page, options, result, progress);
                 result.ExportedPages++;
                 Report(progress, ExportProgressKind.PageExported, $"  Exported successfully: {page.Name}", result, page, finalMdPath);
 
@@ -598,6 +610,30 @@ namespace OneNoteMarkdownExporter.Services
             if (File.Exists(assetsFolderPath))
             {
                 throw new IOException($"Assets folder path points to an existing file: {assetsFolderPath}");
+            }
+        }
+
+        private void ApplyPageTimestamps(
+            string markdownFilePath,
+            OneNoteItem page,
+            ExportOptions options,
+            ExportResult result,
+            IProgress<ExportProgressUpdate>? progress)
+        {
+            if (!options.PreserveDates || (!page.CreatedTime.HasValue && !page.LastModifiedTime.HasValue))
+            {
+                return;
+            }
+
+            try
+            {
+                _timestampService.ApplyTimestamps(markdownFilePath, page.CreatedTime, page.LastModifiedTime);
+            }
+            catch (Exception ex)
+            {
+                var warning = $"Warning: Could not preserve dates for '{page.Name}': {ex.Message}";
+                result.Warnings.Add(warning);
+                Report(progress, ExportProgressKind.Warning, warning, result, page, markdownFilePath);
             }
         }
 
@@ -635,6 +671,7 @@ namespace OneNoteMarkdownExporter.Services
         public int FailedPages { get; set; }
         public string? Error { get; set; }
         public List<string> Failures { get; } = new();
+        public List<string> Warnings { get; } = new();
         public bool Success => string.IsNullOrEmpty(Error) && FailedPages == 0;
     }
 }

@@ -127,13 +127,23 @@ namespace OneNoteMarkdownExporter.Services
             var sanitized = new StringBuilder(name.Length);
             foreach (var character in name)
             {
-                sanitized.Append(IsInvalidWindowsFileNameCharacter(character) ? '_' : character);
+                sanitized.Append(GetSafeReplacementCharacter(character));
             }
 
             var result = Regex.Replace(sanitized.ToString(), "_{2,}", "_").Trim();
             result = TrimTrailingSpacesAndPeriods(result);
 
             return result;
+        }
+
+        private static char GetSafeReplacementCharacter(char character)
+        {
+            if (character == '/' || character == '\\')
+            {
+                return '-';
+            }
+
+            return IsInvalidWindowsFileNameCharacter(character) ? '_' : character;
         }
 
         private static string ToPascalCaseScopeName(string? name)
@@ -218,7 +228,7 @@ namespace OneNoteMarkdownExporter.Services
 
         private static bool IsEmptySanitizedName(string name)
         {
-            return string.IsNullOrWhiteSpace(name) || name.Trim('_').Length == 0;
+            return string.IsNullOrWhiteSpace(name) || name.All(character => character == '_' || character == '-' || char.IsWhiteSpace(character));
         }
 
         private static string ProtectReservedName(string component)

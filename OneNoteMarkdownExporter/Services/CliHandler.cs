@@ -39,7 +39,7 @@ namespace OneNoteMarkdownExporter.Services
             {
                 "--all", "--notebook", "--section", "--page", "--output", "-o",
                 "--assets-folder", "--asset-organization", "--overwrite", "--no-lint", "--lint-config",
-                "--list", "--dry-run", "--verbose", "-v", "--quiet", "-q",
+                "--no-preserve-dates", "--date-metadata", "--list", "--dry-run", "--verbose", "-v", "--quiet", "-q",
                 "--help", "-h", "-?", "--version"
             };
 
@@ -86,7 +86,7 @@ namespace OneNoteMarkdownExporter.Services
 
             var assetsFolderOption = new Option<string?>("--assets-folder")
             {
-                Description = "Path to folder for storing exported assets in centralized mode (default: <output>/assets)"
+                Description = "Path to folder for storing exported assets in centralized mode (default: <output>/_assets)"
             };
 
             var assetOrganizationOption = new Option<string>("--asset-organization")
@@ -108,6 +108,17 @@ namespace OneNoteMarkdownExporter.Services
             var lintConfigOption = new Option<string?>("--lint-config")
             {
                 Description = "Path to custom markdownlint configuration file"
+            };
+
+            var noPreserveDatesOption = new Option<bool>("--no-preserve-dates")
+            {
+                Description = "Do not preserve OneNote created/modified dates as file timestamps"
+            };
+
+            var dateMetadataOption = new Option<string>("--date-metadata")
+            {
+                Description = "Date metadata mode: none or yaml",
+                DefaultValueFactory = _ => "none"
             };
 
             var listOption = new Option<bool>("--list")
@@ -141,6 +152,8 @@ namespace OneNoteMarkdownExporter.Services
             rootCommand.Options.Add(overwriteOption);
             rootCommand.Options.Add(noLintOption);
             rootCommand.Options.Add(lintConfigOption);
+            rootCommand.Options.Add(noPreserveDatesOption);
+            rootCommand.Options.Add(dateMetadataOption);
             rootCommand.Options.Add(listOption);
             rootCommand.Options.Add(dryRunOption);
             rootCommand.Options.Add(verboseOption);
@@ -152,6 +165,13 @@ namespace OneNoteMarkdownExporter.Services
                 if (!TryParseAssetOrganizationMode(assetOrganizationValue, out var assetOrganizationMode))
                 {
                     Console.Error.WriteLine($"Error: Unknown asset organization mode '{assetOrganizationValue}'. Use centralized, notebook, section, or page.");
+                    return 1;
+                }
+
+                var dateMetadataValue = result.GetValue(dateMetadataOption);
+                if (!TryParseDateMetadataMode(dateMetadataValue, out var dateMetadataMode))
+                {
+                    Console.Error.WriteLine($"Error: Unknown date metadata mode '{dateMetadataValue}'. Use none or yaml.");
                     return 1;
                 }
 
@@ -167,6 +187,8 @@ namespace OneNoteMarkdownExporter.Services
                     Overwrite = result.GetValue(overwriteOption),
                     ApplyLinting = !result.GetValue(noLintOption),
                     LintConfigPath = result.GetValue(lintConfigOption),
+                    PreserveDates = !result.GetValue(noPreserveDatesOption),
+                    DateMetadataMode = dateMetadataMode,
                     DryRun = result.GetValue(dryRunOption),
                     Verbose = result.GetValue(verboseOption),
                     Quiet = result.GetValue(quietOption)
@@ -238,6 +260,8 @@ namespace OneNoteMarkdownExporter.Services
                     }
                     Console.WriteLine($"Overwrite: {(options.Overwrite ? "Yes" : "No")}");
                     Console.WriteLine($"Linting: {(options.ApplyLinting ? "Enabled (markdownlint-cli)" : "Disabled")}");
+                    Console.WriteLine($"Date preservation: {(options.PreserveDates ? "Enabled" : "Disabled")}");
+                    Console.WriteLine($"Date metadata: {FormatDateMetadataMode(options.DateMetadataMode)}");
                     if (options.DryRun) Console.WriteLine("Mode: DRY RUN (no files will be created)");
                     Console.WriteLine();
                 }
@@ -265,6 +289,14 @@ namespace OneNoteMarkdownExporter.Services
                     if (result.FailedPages > 0)
                     {
                         Console.WriteLine($"  Pages failed: {result.FailedPages}");
+                    }
+                    if (result.Warnings.Count > 0)
+                    {
+                        Console.WriteLine($"  Warnings: {result.Warnings.Count}");
+                        foreach (var warning in result.Warnings)
+                        {
+                            Console.WriteLine($"  {warning}");
+                        }
                     }
                 }
 
@@ -377,6 +409,24 @@ namespace OneNoteMarkdownExporter.Services
             }
         }
 
+        public static bool TryParseDateMetadataMode(string? value, out DateMetadataMode mode)
+        {
+            switch (value?.Trim().ToLowerInvariant())
+            {
+                case null:
+                case "":
+                case "none":
+                    mode = DateMetadataMode.None;
+                    return true;
+                case "yaml":
+                    mode = DateMetadataMode.Yaml;
+                    return true;
+                default:
+                    mode = DateMetadataMode.None;
+                    return false;
+            }
+        }
+
         private static string FormatAssetOrganizationMode(AssetOrganizationMode mode)
         {
             return mode switch
@@ -385,6 +435,16 @@ namespace OneNoteMarkdownExporter.Services
                 AssetOrganizationMode.Notebook => "notebook",
                 AssetOrganizationMode.Section => "section",
                 AssetOrganizationMode.Page => "page",
+                _ => mode.ToString()
+            };
+        }
+
+        private static string FormatDateMetadataMode(DateMetadataMode mode)
+        {
+            return mode switch
+            {
+                DateMetadataMode.None => "none",
+                DateMetadataMode.Yaml => "yaml",
                 _ => mode.ToString()
             };
         }

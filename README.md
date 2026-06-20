@@ -35,6 +35,7 @@ Go to [GitHub Releases](https://github.com/segunak/one-note-to-markdown/releases
 - **Clean Markdown output** - Proper formatting, no leftover HTML tags
 - **Image extraction** - Embedded images saved to a configurable assets folder with relative paths
 - **Asset organization modes** - Store assets centrally, per notebook, per section, or per page
+- **Date preservation** - Exported Markdown files keep OneNote created and modified timestamps
 - **Sync-friendly** - "Overwrite existing files" option keeps exports in sync with your notes
 - **Markdown linting** - Automatic cleanup via bundled markdownlint-cli (configurable)
 
@@ -63,6 +64,8 @@ Double-click `OneNoteMarkdownExporter.exe` to launch the graphical interface.
 6. **Configure options**:
    - **Overwrite existing files** - Enable this for ongoing syncing
    - **Apply Markdown linting** - Cleans up the output (can be toggled off)
+  - **Preserve OneNote dates as file timestamps** - Sets exported `.md` Created and Modified dates from OneNote
+  - **Add YAML front matter metadata** - Optional; changes Markdown content when enabled
 7. **Click Start Export**
 
 ## CLI Mode
@@ -116,6 +119,13 @@ OneNoteMarkdownExporter.exe --help
 | `--no-lint` | Disable Markdown linting (markdownlint-cli) |
 | `--lint-config <path>` | Path to custom `.markdownlint.json` configuration file |
 
+#### Dates
+
+| Option | Description |
+|--------|-------------|
+| `--no-preserve-dates` | Do not set exported `.md` file timestamps from OneNote dates |
+| `--date-metadata <mode>` | Date metadata mode: `none` or `yaml` (default: `none`) |
+
 #### Utility
 
 | Option | Description |
@@ -146,6 +156,12 @@ OneNoteMarkdownExporter.exe --section "Work Notes/Meeting Notes"
 
 # Export everything, overwrite existing, skip linting
 OneNoteMarkdownExporter.exe --all --overwrite --no-lint
+
+# Export without preserving OneNote dates as file timestamps
+OneNoteMarkdownExporter.exe --all --no-preserve-dates
+
+# Export with YAML front matter metadata
+OneNoteMarkdownExporter.exe --all --date-metadata yaml
 
 # Quiet mode for scheduled tasks (only shows errors)
 OneNoteMarkdownExporter.exe --all --quiet --overwrite
@@ -181,6 +197,21 @@ Use `--asset-organization <mode>` or the GUI asset organization selector to choo
 | `page` | Each page gets `_assets_PageName` beside the Markdown file | No |
 
 Generated scoped folder names use a Windows-safe PascalCase suffix with spaces and punctuation removed. For example, `Project Notes` becomes `_assets_ProjectNotes`, and `Q&A / Work` becomes `_assets_QAWork`. Apostrophes are removed without splitting the word, so `Segun's Notebook` becomes `_assets_SegunsNotebook`. If two generated names collide in the same folder, the second name receives a stable hash suffix such as `_assets_ProjectNotes_a1b2c3d4`.
+
+### Date Preservation
+
+By default, exported Markdown page files preserve OneNote page dates as Windows file timestamps. The exported `.md` file creation time is set from the OneNote created date when available, and the file modified time is set from the OneNote last modified date when available. Timestamps are applied after Markdown conversion, optional YAML metadata, linting, and file writing.
+
+Date preservation does not change Markdown content. Use the GUI checkbox or `--no-preserve-dates` to turn it off.
+
+YAML front matter metadata is off by default because it changes Markdown content. Enable it with the GUI checkbox or `--date-metadata yaml` when you want metadata inside each Markdown file.
+
+```yaml
+---
+created: "2024-01-15 10:30 UTC"
+updated: "2024-02-20 14:45 UTC"
+---
+```
 
 ### Subpages
 
