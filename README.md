@@ -6,7 +6,7 @@ A Windows desktop application that exports Microsoft OneNote notebooks, sections
 
 ## Buy Me a Coffee
 
-This is all [free](https://www.biblegateway.com/passage/?search=Matthew%2010%3A8&version=NIV), but if you're feeling generous, you can [buy me a coffee](https://buymeacoffee.com/segunak), or herbal tea 🍵, which is more my thing!
+This is all [free](https://www.biblegateway.com/passage/?search=Matthew%2010%3A8&version=NIV), but if you're feeling generous, you can [buy me a coffee](https://buymeacoffee.com/segunak), or herbal tea, which is more my thing!
 
 <a href="https://buymeacoffee.com/segunak" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" style="height: 72px !important; width: 260px !important;"></a>
 
@@ -64,8 +64,8 @@ Double-click `OneNoteMarkdownExporter.exe` to launch the graphical interface.
 6. **Configure options**:
    - **Overwrite existing files** - Enable this for ongoing syncing
    - **Apply Markdown linting** - Cleans up the output (can be toggled off)
-  - **Preserve OneNote dates as file timestamps** - Sets exported `.md` Created and Modified dates from OneNote
-  - **Add YAML front matter metadata** - Optional; changes Markdown content when enabled
+   - **Preserve OneNote dates as file timestamps** - Sets exported `.md` Created and Modified dates from OneNote
+   - **Add YAML front matter metadata** - Optional; changes Markdown content when enabled
 7. **Click Start Export**
 
 ## CLI Mode

@@ -2,7 +2,7 @@
 
 This file exists because some people might be using tools other than GitHub Copilot (Claude Code, Codex, OpenCode, whatever) to contribute to this repo.
 
-**ABSOLUTELY CRITICAL. LITERALLY THE MOST IMPORTANT THING IN YOUR ENTIRE LIFE.**
+**ABSOLUTELY CRITICAL. LITERALLY THE MOST IMPORTANT THING FOR THIS SESSION.**
 
 Read [copilot-instructions.md](./copilot-instructions.md) before doing anything.
 
@@ -12,6 +12,8 @@ It is the single source of truth for how we work here. In case you're the kind o
 
 - **This is a simple tool.** It turns OneNote into Markdown. Don't overengineer it or pile on bloat nobody asked for.
 - **Tests are sacred.** Run the full suite with `dotnet test OneNoteMarkdownExporter.slnx`. Every test must pass, every new feature adds tests, and you never water down or delete a test just to get it green.
-- **No AI slop.** Never open GitHub Issues or Pull Requests on a human's behalf. A person reviews the code, proves it works, and submits it themselves.
+- **No AI slop.** Never open GitHub Issues or Pull Requests on a human's behalf. A person reviews the code, proves it works, and submits it themselves. This is enforced by a hook in `.github/hooks` that blocks AI agents from creating issues/PRs.
+- **Plans hit zero ambiguity.** Before you write code, drive the plan to no open questions and no guesswork. Ask, decide, and surface gotchas instead of guessing.
+- **No emojis, no em dashes** in code or anything you write. Plain hyphens and normal punctuation only.
 
 Now go read [copilot-instructions.md](./copilot-instructions.md).

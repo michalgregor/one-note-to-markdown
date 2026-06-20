@@ -1,0 +1,4 @@
+# Shell scripts must use LF line endings so they run correctly on Linux and
+# macOS and inside the GitHub Copilot cloud agent (a CRLF shebang line breaks
+# execution with "bad interpreter"). The repo's hook scripts live in .github/hooks.
+*.sh text eol=lf

@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "hooks": {
+    "preToolUse": [
+      {
+        "type": "command",
+        "bash": "bash .github/hooks/block-ai-pr-issue.sh",
+        "powershell": "& '.github/hooks/block-ai-pr-issue.ps1'",
+        "cwd": ".",
+        "timeoutSec": 10
+      }
+    ]
+  }
+}
