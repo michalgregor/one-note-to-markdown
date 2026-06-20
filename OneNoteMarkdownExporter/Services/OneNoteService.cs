@@ -8,7 +8,7 @@ using System.Linq;
 
 namespace OneNoteMarkdownExporter.Services
 {
-    public class OneNoteService
+    public class OneNoteService : IOneNoteExportSource
     {
         private Microsoft.Office.Interop.OneNote.Application _oneNoteApp;
         private const string OneNoteNamespace = "http://schemas.microsoft.com/office/onenote/2013/onenote";

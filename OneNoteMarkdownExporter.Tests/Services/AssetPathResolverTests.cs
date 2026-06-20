@@ -14,7 +14,7 @@ public class AssetPathResolverTests
 
         var result = AssetPathResolver.ResolveAssetsFolderPath(outputPath, null);
 
-        result.Should().Be(Path.Combine(outputPath, "assets"));
+        result.Should().Be(Path.Combine(outputPath, "_assets"));
     }
 
     [Fact]
@@ -24,7 +24,7 @@ public class AssetPathResolverTests
 
         var result = AssetPathResolver.ResolveAssetsFolderPath(outputPath, "   ");
 
-        result.Should().Be(Path.Combine(outputPath, "assets"));
+        result.Should().Be(Path.Combine(outputPath, "_assets"));
     }
 
     [Fact]

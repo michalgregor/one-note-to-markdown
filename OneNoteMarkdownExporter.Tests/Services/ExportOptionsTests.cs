@@ -219,6 +219,46 @@ public class ExportOptionsTests
     }
 
     [Fact]
+    public void AssetOrganizationMode_DefaultsToCentralized()
+    {
+        var options = new ExportOptions();
+
+        options.AssetOrganizationMode.Should().Be(AssetOrganizationMode.Centralized);
+    }
+
+    [Theory]
+    [InlineData(AssetOrganizationMode.Notebook)]
+    [InlineData(AssetOrganizationMode.Section)]
+    [InlineData(AssetOrganizationMode.Page)]
+    public void Validate_WithCustomAssetsFolderOutsideCentralizedMode_ThrowsInvalidOperationException(AssetOrganizationMode mode)
+    {
+        var options = new ExportOptions
+        {
+            AssetOrganizationMode = mode,
+            AssetsFolderPath = "custom-assets"
+        };
+
+        var act = () => options.Validate();
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("Custom assets folder paths are only supported when asset organization is centralized.");
+    }
+
+    [Fact]
+    public void Validate_WithCustomAssetsFolderInCentralizedMode_DoesNotThrow()
+    {
+        var options = new ExportOptions
+        {
+            AssetOrganizationMode = AssetOrganizationMode.Centralized,
+            AssetsFolderPath = "custom-assets"
+        };
+
+        var act = () => options.Validate();
+
+        act.Should().NotThrow();
+    }
+
+    [Fact]
     public void LintConfigPath_DefaultsToNull()
     {
         // Arrange

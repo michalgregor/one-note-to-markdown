@@ -1,10 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Forms;
 using OneNoteMarkdownExporter.Models;
@@ -14,10 +12,7 @@ namespace OneNoteMarkdownExporter
 {
     public partial class MainWindow : Window
     {
-        private OneNoteService? _oneNoteService;
-        private MarkdownConverterService _markdownConverter;
-        private OneNoteXmlToMarkdownConverter _xmlConverter;
-        private MarkdownLintCliService _cliLinter;
+        private readonly ExportService _exportService;
         private CancellationTokenSource? _cts;
         private const string NoFailuresMessage = "No failures.";
         private int _failureLogCount;
@@ -25,43 +20,38 @@ namespace OneNoteMarkdownExporter
         public MainWindow()
         {
             InitializeComponent();
-            _markdownConverter = new MarkdownConverterService();
-            _xmlConverter = new OneNoteXmlToMarkdownConverter();
-            _cliLinter = new MarkdownLintCliService();
+            _exportService = new ExportService();
             Loaded += MainWindow_Loaded;
-            
-            // Subscribe to selection changes
+
             OneNoteItem.SelectionChanged += OnSelectionChanged;
-            
-            // Set default output path to Downloads\OneNoteExport
+
             SetDefaultOutputPath();
+            UpdateAssetOrganizationUi();
         }
 
         private void SetDefaultOutputPath()
         {
             try
             {
-                // Get the Downloads folder path using Known Folder GUID
-                string downloadsPath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                var downloadsPath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
                 downloadsPath = Path.Combine(downloadsPath, "Downloads", "OneNoteExport");
-                
-                // Create the directory if it doesn't exist
+
                 if (!Directory.Exists(downloadsPath))
                 {
                     Directory.CreateDirectory(downloadsPath);
                 }
-                
+
                 OutputPathBox.Text = downloadsPath;
                 AssetsPathBox.Text = AssetPathResolver.GetDefaultAssetsFolderPath(downloadsPath);
             }
             catch (Exception ex)
             {
-                // Fallback to temp directory if Downloads fails
-                string fallbackPath = Path.Combine(Path.GetTempPath(), "OneNoteExport");
+                var fallbackPath = Path.Combine(Path.GetTempPath(), "OneNoteExport");
                 if (!Directory.Exists(fallbackPath))
                 {
                     Directory.CreateDirectory(fallbackPath);
                 }
+
                 OutputPathBox.Text = fallbackPath;
                 AssetsPathBox.Text = AssetPathResolver.GetDefaultAssetsFolderPath(fallbackPath);
                 Log($"Could not set Downloads folder, using temp folder: {ex.Message}");
@@ -70,7 +60,6 @@ namespace OneNoteMarkdownExporter
 
         private void OnSelectionChanged(object? sender, EventArgs e)
         {
-            // Marshal to UI thread since this can be called from background thread during export
             if (!Dispatcher.CheckAccess())
             {
                 Dispatcher.Invoke(UpdateSelectionStatus);
@@ -84,11 +73,10 @@ namespace OneNoteMarkdownExporter
         private void UpdateSelectionStatus()
         {
             var items = NotebookTree.ItemsSource as List<OneNoteItem>;
-            int selectedCount = items != null ? CountSelectedItems(items) : 0;
-            
+            var selectedCount = items != null ? CountSelectedItems(items) : 0;
+
             if (selectedCount > 0)
             {
-                // Ready to export - green/success state
                 SelectionStatusBorder.Background = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#D4EDDA"));
                 SelectionStatusBorder.BorderBrush = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#C3E6CB"));
                 SelectionStatusIcon.Text = "✓";
@@ -97,7 +85,6 @@ namespace OneNoteMarkdownExporter
             }
             else
             {
-                // Nothing selected - warning state
                 SelectionStatusBorder.Background = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#FFF3CD"));
                 SelectionStatusBorder.BorderBrush = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#FFECB5"));
                 SelectionStatusIcon.Text = "⚠";
@@ -108,12 +95,13 @@ namespace OneNoteMarkdownExporter
 
         private int CountSelectedItems(List<OneNoteItem> items)
         {
-            int count = 0;
+            var count = 0;
             foreach (var item in items)
             {
                 if (item.IsSelected) count++;
                 count += CountSelectedItems(item.Children);
             }
+
             return count;
         }
 
@@ -126,8 +114,7 @@ namespace OneNoteMarkdownExporter
         {
             try
             {
-                _oneNoteService = new OneNoteService();
-                var items = _oneNoteService.GetNotebookHierarchy();
+                var items = _exportService.GetNotebookHierarchy();
                 NotebookTree.ItemsSource = items;
                 Log("Notebooks loaded successfully.");
                 UpdateSelectionStatus();
@@ -152,12 +139,56 @@ namespace OneNoteMarkdownExporter
                 {
                     var previousDefaultAssetsPath = AssetPathResolver.GetDefaultAssetsFolderPath(OutputPathBox.Text);
                     OutputPathBox.Text = dialog.SelectedPath;
-                    if (string.IsNullOrWhiteSpace(AssetsPathBox.Text) || PathsEqual(AssetsPathBox.Text, previousDefaultAssetsPath))
+                    if (GetSelectedAssetOrganizationMode() == AssetOrganizationMode.Centralized
+                        && (string.IsNullOrWhiteSpace(AssetsPathBox.Text) || PathsEqual(AssetsPathBox.Text, previousDefaultAssetsPath)))
                     {
                         AssetsPathBox.Text = AssetPathResolver.GetDefaultAssetsFolderPath(dialog.SelectedPath);
                     }
+
+                    UpdateAssetOrganizationUi();
                 }
             }
+        }
+
+        private void AssetOrganizationBox_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            UpdateAssetOrganizationUi();
+        }
+
+        private AssetOrganizationMode GetSelectedAssetOrganizationMode()
+        {
+            return AssetOrganizationBox.SelectedIndex switch
+            {
+                1 => AssetOrganizationMode.Notebook,
+                2 => AssetOrganizationMode.Section,
+                3 => AssetOrganizationMode.Page,
+                _ => AssetOrganizationMode.Centralized
+            };
+        }
+
+        private void UpdateAssetOrganizationUi()
+        {
+            if (AssetsPathBox == null || BrowseAssetsButton == null || AssetOrganizationPreviewText == null)
+            {
+                return;
+            }
+
+            var mode = GetSelectedAssetOrganizationMode();
+            var isCentralized = mode == AssetOrganizationMode.Centralized;
+
+            AssetsPathBox.IsEnabled = isCentralized;
+            BrowseAssetsButton.IsEnabled = isCentralized;
+            AssetsPathBox.Opacity = isCentralized ? 1.0 : 0.55;
+            BrowseAssetsButton.Opacity = isCentralized ? 1.0 : 0.55;
+
+            AssetOrganizationPreviewText.Text = mode switch
+            {
+                AssetOrganizationMode.Centralized => "Assets are saved to one folder. You can choose the folder location.",
+                AssetOrganizationMode.Notebook => "Each notebook folder gets a generated _assets_NotebookName folder.",
+                AssetOrganizationMode.Section => "Each section folder gets a generated _assets_SectionName folder.",
+                AssetOrganizationMode.Page => "Each page gets a generated _assets_PageName folder beside the Markdown file.",
+                _ => string.Empty
+            };
         }
 
         private void BrowseAssetsButton_Click(object sender, RoutedEventArgs e)
@@ -210,17 +241,26 @@ namespace OneNoteMarkdownExporter
             SetExportStatus($"Exported 0 of {totalPages} pages...", "#0C5460");
             Log("Starting export...");
 
-            bool expandCollapsed = ExpandCollapsedBox.IsChecked == true;
-            bool overwriteExisting = OverwriteExistingBox.IsChecked == true;
-            bool applyLinting = LintMarkdownBox.IsChecked == true;
-            string assetsRoot;
+            var options = new ExportOptions
+            {
+                OutputPath = rootPath,
+                AssetOrganizationMode = GetSelectedAssetOrganizationMode(),
+                Overwrite = OverwriteExistingBox.IsChecked == true,
+                ApplyLinting = LintMarkdownBox.IsChecked == true
+            };
+
+            if (options.AssetOrganizationMode == AssetOrganizationMode.Centralized)
+            {
+                options.AssetsFolderPath = AssetsPathBox.Text;
+            }
+
             try
             {
-                assetsRoot = AssetPathResolver.PrepareAssetsFolder(rootPath, AssetsPathBox.Text);
+                options.Validate();
             }
             catch (Exception ex)
             {
-                System.Windows.MessageBox.Show($"Invalid assets folder: {ex.Message}", "Assets Folder", MessageBoxButton.OK, MessageBoxImage.Error);
+                System.Windows.MessageBox.Show(ex.Message, "Assets Folder", MessageBoxButton.OK, MessageBoxImage.Error);
                 ExportButton.IsEnabled = true;
                 StopButton.IsEnabled = false;
                 NotebookTree.IsEnabled = true;
@@ -235,66 +275,59 @@ namespace OneNoteMarkdownExporter
 
             _cts = new CancellationTokenSource();
             var token = _cts.Token;
-            var exportFailed = false;
-            var progressState = new ExportProgressState(totalPages);
+            ExportResult result;
+            var generalFailureLogged = false;
 
-            if (applyLinting)
+            if (options.ApplyLinting)
             {
                 Log("Markdown linting enabled (markdownlint-cli)");
             }
 
-            await Task.Run(() =>
+            var progress = new Progress<ExportProgressUpdate>(HandleExportProgress);
+
+            try
             {
-                try
-                {
-                    foreach (var item in items)
-                    {
-                        if (token.IsCancellationRequested) break;
-                        ExportItem(item, rootPath, rootPath, assetsRoot, expandCollapsed, overwriteExisting, applyLinting, token, progressState);
-                    }
-                    
-                    if (token.IsCancellationRequested)
-                    {
-                        Dispatcher.Invoke(() => Log("Export stopped by user."));
-                    }
-                    else
-                    {
-                        Dispatcher.Invoke(() => Log("Export completed successfully!"));
-                    }
-                }
-                catch (Exception ex)
-                {
-                    exportFailed = true;
-                    Dispatcher.Invoke(() => LogGeneralFailure("Export", ex));
-                }
-            });
+                result = await _exportService.ExportSelectedAsync(items, options, progress, token);
+            }
+            catch (Exception ex)
+            {
+                result = new ExportResult { Error = ex.Message, TotalPages = totalPages };
+                LogGeneralFailure("Export", ex);
+                generalFailureLogged = true;
+            }
+
+            if (!generalFailureLogged && !string.IsNullOrEmpty(result.Error) && result.Failures.Count == 0)
+            {
+                LogGeneralFailure("Export", new Exception(result.Error));
+            }
 
             ExportButton.IsEnabled = true;
             StopButton.IsEnabled = false;
             NotebookTree.IsEnabled = true;
             RefreshButton.IsEnabled = true;
             ExportProgressBar.IsIndeterminate = false;
+
             if (token.IsCancellationRequested)
             {
-                ExportProgressBar.Value = progressState.ExportedPages;
-                SetExportStatus($"Export stopped. {progressState.ExportedPages} of {totalPages} pages exported.", "#856404");
+                ExportProgressBar.Value = result.ExportedPages;
+                SetExportStatus($"Export stopped. {result.ExportedPages} of {totalPages} pages exported.", "#856404");
             }
-            else if (exportFailed || progressState.FailedPages > 0)
+            else if (!string.IsNullOrEmpty(result.Error) || result.FailedPages > 0)
             {
-                ExportProgressBar.Value = progressState.ExportedPages;
-                if (progressState.FailedPages > 0)
+                ExportProgressBar.Value = result.ExportedPages;
+                if (result.FailedPages > 0)
                 {
-                    SetExportStatus($"Export finished with errors. {progressState.ExportedPages} of {totalPages} pages exported, {progressState.FailedPages} failed.", "#721C24");
+                    SetExportStatus($"Export finished with errors. {result.ExportedPages} of {totalPages} pages exported, {result.FailedPages} failed.", "#721C24");
                 }
                 else
                 {
-                    SetExportStatus($"Export failed. {progressState.ExportedPages} of {totalPages} pages exported.", "#721C24");
+                    SetExportStatus($"Export failed. {result.ExportedPages} of {totalPages} pages exported.", "#721C24");
                 }
             }
             else
             {
-                ExportProgressBar.Value = progressState.TotalPages;
-                SetExportStatus($"Export completed successfully. {progressState.ExportedPages} of {totalPages} pages exported.", "#155724");
+                ExportProgressBar.Value = totalPages;
+                SetExportStatus($"Export completed successfully. {result.ExportedPages} of {totalPages} pages exported.", "#155724");
             }
 
             if (_failureLogCount > 0)
@@ -318,7 +351,6 @@ namespace OneNoteMarkdownExporter
 
         private void ConfigureLinting_Click(object sender, RoutedEventArgs e)
         {
-            // Open the .markdownlint.json config file
             var configPath = Path.Combine(AppContext.BaseDirectory, "resources", ".markdownlint.json");
             if (File.Exists(configPath))
             {
@@ -346,74 +378,30 @@ namespace OneNoteMarkdownExporter
             }
         }
 
-        private void ExportItem(OneNoteItem item, string currentPath, string rootPath, string assetsRoot, bool expandCollapsed, bool overwriteExisting, bool applyLinting, CancellationToken token, ExportProgressState progressState, bool isImplicitlySelected = false)
+        private void HandleExportProgress(ExportProgressUpdate update)
         {
-            if (token.IsCancellationRequested) return;
-
-            bool isSelected = item.IsSelected || isImplicitlySelected;
-            bool hasSelectedDescendants = ExportSelectionHelper.HasSelectedDescendants(item);
-
-            if (!isSelected && !hasSelectedDescendants) return;
-
-            string myPath = currentPath;
-            
-            if (item.Type != OneNoteItemType.Page)
+            switch (update.Kind)
             {
-                // It's a container
-                myPath = ExportPathSanitizer.GetSafeDirectoryPath(currentPath, item.Name, item.Id);
-                if (!Directory.Exists(myPath))
-                {
-                    Directory.CreateDirectory(myPath);
-                }
-
-                foreach (var child in item.Children)
-                {
-                    if (token.IsCancellationRequested) return;
-
-                    ExportItem(child, myPath, rootPath, assetsRoot, expandCollapsed, overwriteExisting, applyLinting, token, progressState, isSelected);
-                }
-            }
-            else
-            {
-                // It's a page
-                if (isSelected)
-                {
-                    var exported = ExportPage(item, currentPath, rootPath, assetsRoot, expandCollapsed, overwriteExisting, applyLinting, token);
-                    if (exported)
-                    {
-                        progressState.ExportedPages++;
-                    }
-                    else if (!token.IsCancellationRequested)
-                    {
-                        progressState.FailedPages++;
-                    }
-
-                    Dispatcher.Invoke(() => UpdateExportProgress(progressState));
-                }
-
-                if (item.Children.Count > 0)
-                {
-                    myPath = ExportPathSanitizer.GetSafeDirectoryPath(currentPath, item.Name, item.Id);
-                    if (!Directory.Exists(myPath))
-                    {
-                        Directory.CreateDirectory(myPath);
-                    }
-
-                    foreach (var child in item.Children)
-                    {
-                        if (token.IsCancellationRequested) return;
-
-                        ExportItem(child, myPath, rootPath, assetsRoot, expandCollapsed, overwriteExisting, applyLinting, token, progressState, isSelected);
-                    }
-                }
+                case ExportProgressKind.PageExported:
+                    Log(update.Message);
+                    UpdateExportProgress(update.ExportedPages, update.FailedPages, update.TotalPages);
+                    break;
+                case ExportProgressKind.PageFailed:
+                    Log($"Export failure:\n{update.FailureDetails ?? update.Message}");
+                    AppendFailureEntry(update.FailureDetails ?? update.Message);
+                    UpdateExportProgress(update.ExportedPages, update.FailedPages, update.TotalPages);
+                    break;
+                default:
+                    Log(update.Message);
+                    break;
             }
         }
 
-        private void UpdateExportProgress(ExportProgressState progressState)
+        private void UpdateExportProgress(int exportedPages, int failedPages, int totalPages)
         {
-            ExportProgressBar.Value = progressState.ExportedPages;
-            var failedText = progressState.FailedPages > 0 ? $", {progressState.FailedPages} failed" : "";
-            SetExportStatus($"Exported {progressState.ExportedPages} of {progressState.TotalPages} pages{failedText}...", "#0C5460");
+            ExportProgressBar.Value = exportedPages;
+            var failedText = failedPages > 0 ? $", {failedPages} failed" : "";
+            SetExportStatus($"Exported {exportedPages} of {totalPages} pages{failedText}...", "#0C5460");
         }
 
         private void SetExportStatus(string message, string colorHex)
@@ -428,13 +416,6 @@ namespace OneNoteMarkdownExporter
             FailureLogTab.Header = "Failures (0)";
             FailureLogBox.Text = NoFailuresMessage;
             ExportLogTabs.SelectedItem = AllLogsTab;
-        }
-
-        private void LogPageFailure(OneNoteItem page, string targetPath, Exception ex)
-        {
-            var failureDetails = ExportFailureFormatter.FormatPageFailure(page, targetPath, ex);
-            Log($"Export failure:\n{failureDetails}");
-            AppendFailureEntry(failureDetails);
         }
 
         private void LogGeneralFailure(string operation, Exception ex)
@@ -461,88 +442,6 @@ namespace OneNoteMarkdownExporter
             FailureLogTab.Header = $"Failures ({_failureLogCount})";
             FailureLogBox.AppendText($"{DateTime.Now:HH:mm:ss}: {failureDetails}{Environment.NewLine}{Environment.NewLine}");
             FailureLogBox.ScrollToEnd();
-        }
-
-        private bool ExportPage(OneNoteItem page, string folderPath, string rootPath, string assetsRoot, bool expandCollapsed, bool overwriteExisting, bool applyLinting, CancellationToken token)
-        {
-            if (_oneNoteService == null) return false;
-            if (token.IsCancellationRequested) return false;
-
-            Dispatcher.Invoke(() => Log($"Exporting Page: {page.Name}"));
-
-            Directory.CreateDirectory(folderPath);
-            var finalMdPath = ExportPathSanitizer.GetSafeMarkdownFilePath(folderPath, page.Name, page.Id);
-            
-            // Handle file existence based on overwrite setting
-            if (File.Exists(finalMdPath))
-            {
-                if (overwriteExisting)
-                {
-                    // Will overwrite below
-                    Dispatcher.Invoke(() => Log($"  Overwriting existing: {Path.GetFileName(finalMdPath)}"));
-                }
-                else
-                {
-                    // Find a unique filename
-                    int counter = 1;
-                    while (File.Exists(finalMdPath))
-                    {
-                        finalMdPath = ExportPathSanitizer.GetSafeMarkdownFilePath(folderPath, page.Name, page.Id, counter);
-                        counter++;
-                    }
-                }
-            }
-
-            try
-            {
-                // Get page content directly via XML (bypasses DLP/Publish restrictions)
-                var pageXml = _oneNoteService.GetPageContent(page.Id);
-                
-                var relativeAssetsPath = AssetPathResolver.GetRelativeAssetsPath(folderPath, assetsRoot);
-                
-                // Create a binary content fetcher for images that aren't embedded
-                BinaryContentFetcher binaryFetcher = (callbackId) => _oneNoteService.GetBinaryPageContent(page.Id, callbackId);
-                
-                // Convert XML directly to Markdown (no Publish API needed)
-                // Use page name as prefix to avoid image filename collisions across pages
-                var markdown = _xmlConverter.Convert(pageXml, assetsRoot, relativeAssetsPath, binaryFetcher, page.Name);
-                
-                // Apply linting if enabled (using markdownlint-cli)
-                if (applyLinting)
-                {
-                    try
-                    {
-                        markdown = _cliLinter.LintContent(markdown);
-                    }
-                    catch (Exception lintEx)
-                    {
-                        Dispatcher.Invoke(() => Log($"  Warning: Linting failed for '{page.Name}': {lintEx.Message}"));
-                        // Continue with unlinted markdown
-                    }
-                }
-                
-                File.WriteAllText(finalMdPath, markdown);
-                
-                Dispatcher.Invoke(() => Log($"  Exported successfully: {page.Name}"));
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Dispatcher.Invoke(() => LogPageFailure(page, finalMdPath, ex));
-                return false;
-            }
-        }
-
-        private class ExportProgressState
-        {
-            public ExportProgressState(int totalPages)
-            {
-                TotalPages = totalPages;
-            }
-
-            public int TotalPages { get; }
-            public int ExportedPages { get; set; }
-            public int FailedPages { get; set; }
         }
 
         private static bool PathsEqual(string firstPath, string secondPath)

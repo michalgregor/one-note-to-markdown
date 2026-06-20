@@ -1,7 +1,16 @@
+using System;
 using System.Collections.Generic;
 
 namespace OneNoteMarkdownExporter.Services
 {
+    public enum AssetOrganizationMode
+    {
+        Centralized,
+        Notebook,
+        Section,
+        Page
+    }
+
     /// <summary>
     /// Options for controlling the export process.
     /// Used by both GUI and CLI modes.
@@ -18,6 +27,11 @@ namespace OneNoteMarkdownExporter.Services
         /// Relative paths are resolved from the output directory.
         /// </summary>
         public string? AssetsFolderPath { get; set; }
+
+        /// <summary>
+        /// Controls how exported assets are grouped on disk.
+        /// </summary>
+        public AssetOrganizationMode AssetOrganizationMode { get; set; } = AssetOrganizationMode.Centralized;
 
         /// <summary>
         /// If true, overwrite existing files. If false, create numbered copies.
@@ -103,6 +117,14 @@ namespace OneNoteMarkdownExporter.Services
                    (NotebookNames != null && NotebookNames.Count > 0) ||
                    (SectionPaths != null && SectionPaths.Count > 0) ||
                    (PageIds != null && PageIds.Count > 0);
+        }
+
+        public void Validate()
+        {
+            if (AssetOrganizationMode != AssetOrganizationMode.Centralized && !string.IsNullOrWhiteSpace(AssetsFolderPath))
+            {
+                throw new InvalidOperationException("Custom assets folder paths are only supported when asset organization is centralized.");
+            }
         }
     }
 }

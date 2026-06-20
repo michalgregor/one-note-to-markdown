@@ -34,6 +34,7 @@ Go to [GitHub Releases](https://github.com/segunak/one-note-to-markdown/releases
 - **Subpage hierarchy** - OneNote subpages export into nested folders
 - **Clean Markdown output** - Proper formatting, no leftover HTML tags
 - **Image extraction** - Embedded images saved to a configurable assets folder with relative paths
+- **Asset organization modes** - Store assets centrally, per notebook, per section, or per page
 - **Sync-friendly** - "Overwrite existing files" option keeps exports in sync with your notes
 - **Markdown linting** - Automatic cleanup via bundled markdownlint-cli (configurable)
 
@@ -57,11 +58,12 @@ Double-click `OneNoteMarkdownExporter.exe` to launch the graphical interface.
 1. **Launch the app** - OneNote will open automatically if it's not running
 2. **Select your content** - Check the boxes next to notebooks, sections, or pages
 3. **Choose an output directory** - Defaults to `Downloads\OneNoteExport`
-4. **Choose an assets folder** - Defaults to `<output>\assets`
-5. **Configure options**:
+4. **Choose asset organization** - Defaults to one centralized assets folder
+5. **Choose an assets folder** - Available in centralized mode and defaults to `<output>\_assets`
+6. **Configure options**:
    - **Overwrite existing files** - Enable this for ongoing syncing
    - **Apply Markdown linting** - Cleans up the output (can be toggled off)
-6. **Click Start Export**
+7. **Click Start Export**
 
 ## CLI Mode
 
@@ -79,6 +81,9 @@ OneNoteMarkdownExporter.exe --all --output "C:\MyExports"
 
 # Export images/assets to a custom folder
 OneNoteMarkdownExporter.exe --all --assets-folder "D:\OneNoteAssets"
+
+# Export with assets grouped per page
+OneNoteMarkdownExporter.exe --all --asset-organization page
 
 # Show help
 OneNoteMarkdownExporter.exe --help
@@ -100,7 +105,8 @@ OneNoteMarkdownExporter.exe --help
 | Option | Description |
 |--------|-------------|
 | `--output`, `-o` `<path>` | Output directory (default: `Downloads\OneNoteExport`) |
-| `--assets-folder <path>` | Folder for exported images/assets (default: `<output>\assets`) |
+| `--assets-folder <path>` | Folder for exported images/assets (default: `<output>\_assets`) |
+| `--asset-organization <mode>` | Asset organization mode: `centralized`, `notebook`, `section`, or `page` |
 | `--overwrite` | Overwrite existing files instead of creating numbered copies |
 
 #### Linting
@@ -149,11 +155,32 @@ OneNoteMarkdownExporter.exe --all --output "D:\Backups\OneNote" --verbose --over
 
 # Export notes and store assets in a separate folder
 OneNoteMarkdownExporter.exe --all --output "D:\Backups\OneNote" --assets-folder "D:\Backups\OneNoteAssets"
+
+# Export notes with assets grouped under each notebook folder
+OneNoteMarkdownExporter.exe --all --asset-organization notebook
+
+# Export notes with page-local asset folders
+OneNoteMarkdownExporter.exe --all --asset-organization page
 ```
 
 ### Assets Folder
 
-Exported images are saved to `<output>\assets` by default. Use the GUI assets folder field or the CLI `--assets-folder <path>` option to choose a different folder. Relative paths are resolved from the output directory, and absolute paths are used as provided. Missing folders are created automatically. Existing asset folders are reused, and generated asset files with the same names are overwritten on later exports. Paths where the assets folder itself would be an existing file are rejected. Markdown image links are generated relative to each exported page.
+Exported images are saved to `<output>\_assets` by default. This is the `centralized` asset organization mode.
+
+Use the GUI assets folder field or the CLI `--assets-folder <path>` option to choose a different centralized folder. Relative paths are resolved from the output directory, and absolute paths are used as provided. Missing folders are created automatically. Existing asset folders are reused, and generated asset files with the same names are overwritten on later exports. Paths where the assets folder itself would be an existing file are rejected. Markdown image links are generated relative to each exported page.
+
+Generated assets folders are created only when exported content actually contains assets.
+
+Use `--asset-organization <mode>` or the GUI asset organization selector to choose a different layout:
+
+| Mode | Asset folder layout | Custom assets folder |
+|------|---------------------|----------------------|
+| `centralized` | `<output>\_assets` or your chosen folder | Yes |
+| `notebook` | Each notebook folder gets `_assets_NotebookName` | No |
+| `section` | Each section folder gets `_assets_SectionName` | No |
+| `page` | Each page gets `_assets_PageName` beside the Markdown file | No |
+
+Generated scoped folder names use a Windows-safe PascalCase suffix with spaces and punctuation removed. For example, `Project Notes` becomes `_assets_ProjectNotes`, and `Q&A / Work` becomes `_assets_QAWork`. Apostrophes are removed without splitting the word, so `Segun's Notebook` becomes `_assets_SegunsNotebook`. If two generated names collide in the same folder, the second name receives a stable hash suffix such as `_assets_ProjectNotes_a1b2c3d4`.
 
 ### Subpages
 

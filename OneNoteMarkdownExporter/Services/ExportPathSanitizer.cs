@@ -79,6 +79,44 @@ namespace OneNoteMarkdownExporter.Services
             return FitComponentToPath(assetsFolder, stem, normalizedExtension, pagePrefix ?? imageStem, MaxWin32PathLength);
         }
 
+        public static string GetSafeAssetScopeDirectoryPath(
+            string parentPath,
+            string prefix,
+            string? scopeName,
+            string? stableId = null,
+            ISet<string>? claimedNames = null)
+        {
+            var baseName = GetAssetScopeFolderName(prefix, scopeName);
+            var stableInput = stableId ?? scopeName ?? baseName;
+            var folderName = FitComponentToPath(parentPath, baseName, string.Empty, stableInput, MaxWin32DirectoryPathLength);
+
+            if (claimedNames == null || claimedNames.Add(folderName))
+            {
+                return Path.Combine(parentPath, folderName);
+            }
+
+            var hash = GetStableHash(stableInput);
+            var uniqueStem = $"{baseName}_{hash}";
+            folderName = FitComponentToPath(parentPath, uniqueStem, string.Empty, stableInput, MaxWin32DirectoryPathLength);
+
+            var counter = 2;
+            while (!claimedNames.Add(folderName))
+            {
+                folderName = FitComponentToPath(parentPath, $"{uniqueStem}_{counter}", string.Empty, stableInput, MaxWin32DirectoryPathLength);
+                counter++;
+            }
+
+            return Path.Combine(parentPath, folderName);
+        }
+
+        public static string GetAssetScopeFolderName(string prefix, string? scopeName)
+        {
+            var safePrefix = SanitizeComponent(prefix, "assets").Replace(" ", string.Empty);
+            var suffix = ToPascalCaseScopeName(scopeName);
+
+            return $"{safePrefix}_{suffix}";
+        }
+
         private static string SanitizeRawComponent(string? name)
         {
             if (string.IsNullOrWhiteSpace(name))
@@ -96,6 +134,61 @@ namespace OneNoteMarkdownExporter.Services
             result = TrimTrailingSpacesAndPeriods(result);
 
             return result;
+        }
+
+        private static string ToPascalCaseScopeName(string? name)
+        {
+            var sanitized = SanitizeRawComponent(name);
+            var parts = new List<string>();
+            var current = new StringBuilder();
+
+            foreach (var character in sanitized)
+            {
+                if (char.IsLetterOrDigit(character))
+                {
+                    current.Append(character);
+                }
+                else if (IsWordJoinerPunctuation(character))
+                {
+                    continue;
+                }
+                else if (current.Length > 0)
+                {
+                    parts.Add(current.ToString());
+                    current.Clear();
+                }
+            }
+
+            if (current.Length > 0)
+            {
+                parts.Add(current.ToString());
+            }
+
+            if (parts.Count == 0)
+            {
+                return "Assets";
+            }
+
+            var result = new StringBuilder();
+            foreach (var part in parts)
+            {
+                result.Append(char.ToUpperInvariant(part[0]));
+                if (part.Length > 1)
+                {
+                    result.Append(part[1..]);
+                }
+            }
+
+            return ProtectReservedName(result.ToString());
+        }
+
+        private static bool IsWordJoinerPunctuation(char character)
+        {
+            return character == '\''
+                || character == '\u2019'
+                || character == '\u2018'
+                || character == '\u02bc'
+                || character == '\uff07';
         }
 
         private static string TrimTrailingSpacesAndPeriods(string value)

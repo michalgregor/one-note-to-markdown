@@ -38,7 +38,7 @@ namespace OneNoteMarkdownExporter.Services
             var cliFlags = new[]
             {
                 "--all", "--notebook", "--section", "--page", "--output", "-o",
-                "--assets-folder", "--overwrite", "--no-lint", "--lint-config",
+                "--assets-folder", "--asset-organization", "--overwrite", "--no-lint", "--lint-config",
                 "--list", "--dry-run", "--verbose", "-v", "--quiet", "-q",
                 "--help", "-h", "-?", "--version"
             };
@@ -86,7 +86,13 @@ namespace OneNoteMarkdownExporter.Services
 
             var assetsFolderOption = new Option<string?>("--assets-folder")
             {
-                Description = "Path to folder for storing exported assets (default: <output>/assets)"
+                Description = "Path to folder for storing exported assets in centralized mode (default: <output>/assets)"
+            };
+
+            var assetOrganizationOption = new Option<string>("--asset-organization")
+            {
+                Description = "Asset organization mode: centralized, notebook, section, or page",
+                DefaultValueFactory = _ => "centralized"
             };
 
             var overwriteOption = new Option<bool>("--overwrite")
@@ -131,6 +137,7 @@ namespace OneNoteMarkdownExporter.Services
             rootCommand.Options.Add(pageOption);
             rootCommand.Options.Add(outputOption);
             rootCommand.Options.Add(assetsFolderOption);
+            rootCommand.Options.Add(assetOrganizationOption);
             rootCommand.Options.Add(overwriteOption);
             rootCommand.Options.Add(noLintOption);
             rootCommand.Options.Add(lintConfigOption);
@@ -141,6 +148,13 @@ namespace OneNoteMarkdownExporter.Services
 
             rootCommand.SetAction(async (result, cancellationToken) =>
             {
+                var assetOrganizationValue = result.GetValue(assetOrganizationOption);
+                if (!TryParseAssetOrganizationMode(assetOrganizationValue, out var assetOrganizationMode))
+                {
+                    Console.Error.WriteLine($"Error: Unknown asset organization mode '{assetOrganizationValue}'. Use centralized, notebook, section, or page.");
+                    return 1;
+                }
+
                 var options = new ExportOptions
                 {
                     ExportAll = result.GetValue(allOption),
@@ -149,6 +163,7 @@ namespace OneNoteMarkdownExporter.Services
                     PageIds = result.GetValue(pageOption)?.ToList(),
                     OutputPath = result.GetValue(outputOption) ?? ExportOptions.GetDefaultOutputPath(),
                     AssetsFolderPath = result.GetValue(assetsFolderOption),
+                    AssetOrganizationMode = assetOrganizationMode,
                     Overwrite = result.GetValue(overwriteOption),
                     ApplyLinting = !result.GetValue(noLintOption),
                     LintConfigPath = result.GetValue(lintConfigOption),
@@ -170,11 +185,11 @@ namespace OneNoteMarkdownExporter.Services
             var exportService = new ExportService();
 
             // Console progress reporter
-            var progress = new Progress<string>(message =>
+            var progress = new Progress<ExportProgressUpdate>(update =>
             {
-                if (!options.Quiet || message.Contains("Error") || message.Contains("failed"))
+                if (!options.Quiet || update.Kind == ExportProgressKind.PageFailed || update.Message.Contains("Error") || update.Message.Contains("failed"))
                 {
-                    Console.WriteLine(message);
+                    Console.WriteLine(update.Message);
                 }
             });
 
@@ -184,6 +199,16 @@ namespace OneNoteMarkdownExporter.Services
                 if (listMode)
                 {
                     return ListHierarchy(exportService, options.Verbose);
+                }
+
+                try
+                {
+                    options.Validate();
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine($"Error: {ex.Message}");
+                    return 1;
                 }
 
                 // Validate that we have selection criteria
@@ -202,7 +227,15 @@ namespace OneNoteMarkdownExporter.Services
                     Console.WriteLine("OneNote to Markdown Exporter");
                     Console.WriteLine("============================");
                     Console.WriteLine($"Output directory: {options.OutputPath}");
-                    Console.WriteLine($"Assets directory: {AssetPathResolver.ResolveAssetsFolderPath(options.OutputPath, options.AssetsFolderPath)}");
+                    Console.WriteLine($"Asset organization: {FormatAssetOrganizationMode(options.AssetOrganizationMode)}");
+                    if (options.AssetOrganizationMode == AssetOrganizationMode.Centralized)
+                    {
+                        Console.WriteLine($"Assets directory: {AssetPathResolver.ResolveAssetsFolderPath(options.OutputPath, options.AssetsFolderPath)}");
+                    }
+                    else
+                    {
+                        Console.WriteLine("Assets directory: generated per selected organization mode");
+                    }
                     Console.WriteLine($"Overwrite: {(options.Overwrite ? "Yes" : "No")}");
                     Console.WriteLine($"Linting: {(options.ApplyLinting ? "Enabled (markdownlint-cli)" : "Disabled")}");
                     if (options.DryRun) Console.WriteLine("Mode: DRY RUN (no files will be created)");
@@ -318,6 +351,42 @@ namespace OneNoteMarkdownExporter.Services
             {
                 PrintItem(child, indent + "  ", verbose);
             }
+        }
+
+        public static bool TryParseAssetOrganizationMode(string? value, out AssetOrganizationMode mode)
+        {
+            switch (value?.Trim().ToLowerInvariant())
+            {
+                case null:
+                case "":
+                case "centralized":
+                    mode = AssetOrganizationMode.Centralized;
+                    return true;
+                case "notebook":
+                    mode = AssetOrganizationMode.Notebook;
+                    return true;
+                case "section":
+                    mode = AssetOrganizationMode.Section;
+                    return true;
+                case "page":
+                    mode = AssetOrganizationMode.Page;
+                    return true;
+                default:
+                    mode = AssetOrganizationMode.Centralized;
+                    return false;
+            }
+        }
+
+        private static string FormatAssetOrganizationMode(AssetOrganizationMode mode)
+        {
+            return mode switch
+            {
+                AssetOrganizationMode.Centralized => "centralized",
+                AssetOrganizationMode.Notebook => "notebook",
+                AssetOrganizationMode.Section => "section",
+                AssetOrganizationMode.Page => "page",
+                _ => mode.ToString()
+            };
         }
     }
 }

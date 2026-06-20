@@ -57,8 +57,17 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     <TextBox x:Name="AssetsPathBox" Text=""/>
-                    <Button Content="..." Grid.Column="1" Width="30" Margin="5,0,0,0" Click="BrowseAssetsButton_Click"/>
+                    <Button x:Name="BrowseAssetsButton" Content="..." Grid.Column="1" Width="30" Margin="5,0,0,0" Click="BrowseAssetsButton_Click"/>
                 </Grid>
+
+                <TextBlock Text="Asset Organization:" FontWeight="Bold"/>
+                <ComboBox x:Name="AssetOrganizationBox" SelectedIndex="0" Margin="0,5,0,5" SelectionChanged="AssetOrganizationBox_SelectionChanged">
+                    <ComboBoxItem Content="Centralized assets folder"/>
+                    <ComboBoxItem Content="Assets folder per notebook"/>
+                    <ComboBoxItem Content="Assets folder per section"/>
+                    <ComboBoxItem Content="Assets folder per page"/>
+                </ComboBox>
+                <TextBlock x:Name="AssetOrganizationPreviewText" TextWrapping="Wrap" Foreground="#666666" FontSize="11" Margin="0,0,0,10"/>
 
                 <CheckBox x:Name="ExpandCollapsedBox" Content="Try to expand collapsed paragraphs (Writable notebooks only)" IsChecked="True" Margin="0,0,0,5"/>
                 <CheckBox x:Name="OverwriteExistingBox" Content="Overwrite existing files (keeps export in sync)" IsChecked="True" Margin="0,0,0,10"/>

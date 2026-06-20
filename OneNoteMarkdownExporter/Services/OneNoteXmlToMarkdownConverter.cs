@@ -22,7 +22,7 @@ namespace OneNoteMarkdownExporter.Services
     /// This bypasses DLP/sensitivity label restrictions that block the Publish() method.
     /// Uses ReverseMarkdown for proper HTML-to-Markdown conversion.
     /// </summary>
-    public class OneNoteXmlToMarkdownConverter
+    public class OneNoteXmlToMarkdownConverter : IMarkdownContentConverter
     {
         private readonly XNamespace _ns = "http://schemas.microsoft.com/office/onenote/2013/onenote";
         private readonly Converter _markdownConverter;
