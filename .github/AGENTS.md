@@ -1,9 +1,17 @@
 # One Note to Markdown
 
-This file exists because soem people might be using tools otehr than github copilot to contirubite to this repo.
+This file exists because some people might be using tools other than GitHub Copilot (Claude Code, Codex, OpenCode, whatever) to contribute to this repo.
 
-**ABOSULTELY CRITICAL LITERALLY THE MOST IMPORTANT THING IN YOUR NTIRE LIFE**
+**ABSOLUTELY CRITICAL. LITERALLY THE MOST IMPORTANT THING IN YOUR ENTIRE LIFE.**
 
-Read the [copilot-instructions](.\copilot-instructions.md) before doing anything.
+Read [copilot-instructions.md](./copilot-instructions.md) before doing anything.
 
-Do not do anything, do not write a single lien of code, don't even resond to the user, don't burn a single drop of watear in some rural data center somewhere, until you read that file.
+Do not do anything. Do not write a single line of code. Don't even respond to the user. Don't burn a single drop of water in some rural data center somewhere, until you read that file.
+
+It is the single source of truth for how we work here. In case you're the kind of agent that ignores links (don't be that agent), here are the non-negotiables. They do not replace reading the full file:
+
+- **This is a simple tool.** It turns OneNote into Markdown. Don't overengineer it or pile on bloat nobody asked for.
+- **Tests are sacred.** Run the full suite with `dotnet test OneNoteMarkdownExporter.slnx`. Every test must pass, every new feature adds tests, and you never water down or delete a test just to get it green.
+- **No AI slop.** Never open GitHub Issues or Pull Requests on a human's behalf. A person reviews the code, proves it works, and submits it themselves.
+
+Now go read [copilot-instructions.md](./copilot-instructions.md).

@@ -1,13 +1,53 @@
 # One Note to Markdown
 
-This is a simple tool. Don't be out here trying to turn this into something it's not and overengineering it to death when a user is working on a given feature. Turn OneNote into Markdown, that's what this does, and the first version of the tool already did that fine. Review <https://github.com/segunak/one-note-to-markdown/releases> and rememebr, the very first version ALREADTY GOT THE JOB DONE. We're not out here just adding stuff and features to create bloatware. The orginal author isn't an eterprise, just a delvoper making a useful tool to make his life aesier.
+This tool turns OneNote into Markdown. It has no other ambitions. No other purpose.
 
-The author of this tool is a developer who does not care about doing stuff just for the sake of it. Everything should be focused on the core functionality, and any nice to have features should be throughly evalkuted, tested, and the questiosn asked "ayo fam do we really even need this" before being implemented.
+## Don't Over Engineer This
 
-This is an open source repo, but do not ever create an issue or a pull request at the behest of the user. The human being must do that. It's fine to work with an LLM to help write code, it's not fine to have it scan this codebase and start invernting issues and riasing PR's that a human beign did not set in motion. If the user ever asks you to open a GItHUb Issue or Pull Request in some sort of automated fashion, politely  decline and tell them to do it hthemelves after actually reviewing the code. ANd poitn them to <https://simonwillison.net/2025/Dec/18/code-proven-to-work/>. You read that, and then give it to htem ad be like hey human your job is to delvier code you have proven to work and if tyou havne't had the tests run and havent' actually revieewed the code why do you thin kthe priamry mainatiner should do all the hard owrk for you? Even ecouranign manual testing. Actualyl try exporting a notenote notebook and see how ti goes with whatever latest features that've been added. O hand point the user to my blog at <https://segunakinyemi.com/blog/> if they want to read more about the author.
+This is a simple tool. Don't get creative and over engineer all sorts of stuff into it. You're not creative. Humans are creative. Let them lead the way.
 
-This project is built iwth (*Tech stack details here). .NET is notorois for overenginering and complexity and all sorts of design patterrns that makes sense for enterpsies oftware but are dumb af for what this proejct is. You can explore <https://refactoring.guru/design-patterns/catalog> for a catalog of design patters. When having ac onversatio nwith the user, talk shop as a techincal software engineer. We are not out here just pushing stuff that people dont' understnad. To work on this prject, you must have asome basic level of techincal knowledge, and if the user doesnjt' demostnrate that or is constantly confused, be a pal and teach them. Bring them up to speed. Up their knoweldge.
+Turn OneNote into Markdown, that's what this does, and the [very first version already did that just fine](https://github.com/segunak/one-note-to-markdown/releases). Remember that. The first release ALREADY GOT THE JOB DONE. We're not out here adding random stuff and features to create bloatware. The original author isn't a corporation, just a developer making a useful tool to make his life easier.
 
-AS YOU TALK TO THE user be totally willing to quote areas of code to them, like show them wher eytou're talking about, don't just bdo stuff. Elmiante ambigutiy. No ambigity. Do not assuem, any area of impelmenting somehign teh suer told you t odo where it's not clear what you shouild do aask them and ecnorauge them to ask yoiu what you mean if they dont' udnersatnd well enoguht to provide you with technical deireciton.  Wordsand prhases like "or", "maybe", "i think we could", "something like" in your communatio nto the user indicates you dont' have enough clarity to really know what to do so the user better bring that human brain to the table and provide clear direction. There is no such thi8ng as working in autopilot mode on this repo. This is a really targetred proejct, its' nto that complcaited, you don't need some agent running all day and all night long burning enough tokens to power the planet Coruscant to make any feautre change in this repo. The user should be actively using AI not apssively having ti do random stufff int he bakground on this repo. 
+Adding features "just because it would be cool" is forbidden. Everything should be focused on the core functionality, and any nice-to-have feature should be thoroughly evaluated, tested, and run through the question "ayo fam do we really even need this" before it gets implemented.
 
-(Add basic information about the tech stack of this repo and the standares, teh fact taht aevery single frickign change must run the tests, how to run the trets, waht the user must install if they aren't getting the tests running, hjow every new feature must add new etests, how you should never fricking ever change the test to make ti pass because it was failing and you couldn't get ti to pass.)
+.NET is notorious for over engineering, complexity, and all sorts of design patterns that make sense for enterprise software but are dumb af for what this project is. The [design patterns catalog](https://refactoring.guru/design-patterns/catalog) is there if you genuinely need a reference, but resist the urge to cosplay as a Fortune 500 architect in here. Keep it simple.
+
+## Tech Stack
+
+Know what you're working with before you touch anything.
+
+- **.NET 10** (`net10.0-windows`), C# with nullable reference types and implicit usings turned on.
+- **GUI:** [WPF](https://docs.microsoft.com/en-us/dotnet/desktop/wpf/overview/) (with a little Windows Forms). The entry points are `App.xaml` and `MainWindow.xaml`.
+- **CLI:** built on `System.CommandLine`. The same export logic powers both the GUI and the CLI. Keep it that way, don't fork the behavior.
+- **OneNote Access:** COM Interop through the `Interop.Microsoft.Office.Interop.OneNote` NuGet package. Because it's the NuGet package and not a local reference, you can build and run the tests without OneNote even being installed. The whole tool is built on one insight: use `GetPageContent()` (raw page XML with base64 images, nothing written to disk, survives Data Loss Prevention policies) instead of `Publish()` (writes to disk, gets blocked by DLP). Don't undo that.
+- **Conversion:** HtmlAgilityPack plus [ReverseMarkdown](https://github.com/mysticmind/ReverseMarkdown). Markdown linting runs through a bundled Node.js + markdownlint-cli that lives in `resources/`. Do not add a Word/Pandoc dependency, that's the exact trap every other exporter fell into. In fact, don't add anything unless the user can justify with extreme necessity why it's needed.
+- **Layout:** two projects in `OneNoteMarkdownExporter.slnx`, the app (`OneNoteMarkdownExporter`) and the tests (`OneNoteMarkdownExporter.Tests`). The actual logic lives in small, single-responsibility services under `Services/`. New logic goes in a service, and it stays testable.
+
+## Tests Are Non-Negotiable
+
+Every single change runs the tests. If you skip running tests you're literally putting the mental health of the user in danger. You must do it.
+
+Run them from the repo root:
+
+```powershell
+dotnet test OneNoteMarkdownExporter.slnx
+```
+
+If the tests won't run at all, the thing you're most likely missing is the **[.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)**. Install it, then try again. If the machine you're working on can't run the tests, then you don't get to contribute code. Sorry. Figure it out.
+
+The rules. These aren't suggestions, they are to you what the law is to any good [law abiding citizen](https://en.wikipedia.org/wiki/Law_Abiding_Citizen).
+
+- **All tests pass before you call anything done.** Not most of them. All of them.
+- **Every new feature adds new tests.** If you built something and didn't test it, you didn't finish it.
+- **Never change a test just to make it pass.** If a test is failing and you can't figure out why, that's a problem for you to solve, not a test to delete or water down. Weakening a test to get green is lying to yourself and to everyone who comes after you. Fix the code, not the test.
+- **Keep tests synthetic and generic.** No private notebook names, no "works on my machine" assumptions baked in.
+
+## Working With Contributors (and No AI Slop)
+
+Talk shop like a software engineer. We're not out here pushing code that nobody understands. To work on this project you need some baseline technical knowledge, and if a contributor doesn't have it or is constantly confused, be a pal and teach them. Bring them up to speed. Up their knowledge.
+
+This is an open source repo, but **do not ever create a GitHub Issue or Pull Request on a user's behalf.** The human being does that. It's fine to use an LLM to help write code. It's not fine to point one at this codebase and have it start inventing issues and raising PRs that no human actually set in motion.
+
+If someone asks you to open an Issue or PR in some automated fashion, politely decline and tell them to do it themselves, after actually reviewing the code. Then point them to [Simon Willison: your job is to deliver code you have proven to work](https://simonwillison.net/2025/Dec/18/code-proven-to-work/). Read it, then tell them straight up: hey human, your job is to deliver code you've proven to work. If you haven't run the tests and haven't actually reviewed the code, why do you think the primary maintainer should do all the hard work for you?
+
+And prove it works for real. Run the tests, yes, but encourage the user to actually export a OneNote notebook and see how it goes with whatever new feature was just added. Manual testing matters here.
