@@ -367,6 +367,52 @@ public class ExportServiceTests
         }
     }
 
+    [Fact]
+    public async Task ExportSelectedAsync_WithSelectedParentPage_ExportsParentAndSubpagesInNestedFolders()
+    {
+        var outputPath = CreateTempExportPath();
+        var service = new ExportService(new FakeOneNoteExportSource(), new RecordingMarkdownConverter(), new PassthroughMarkdownLintService());
+        var notebooks = CreateParentSubpageHierarchy(parentSelected: true, childSelected: false);
+        var options = new ExportOptions { OutputPath = outputPath, ApplyLinting = false, Overwrite = true };
+
+        try
+        {
+            var result = await service.ExportSelectedAsync(notebooks, options);
+
+            result.Success.Should().BeTrue();
+            File.Exists(Path.Combine(outputPath, "Notebook", "Section", "Parent Page.md")).Should().BeTrue();
+            File.Exists(Path.Combine(outputPath, "Notebook", "Section", "Parent Page", "Child Page.md")).Should().BeTrue();
+            File.Exists(Path.Combine(outputPath, "Notebook", "Section", "Parent Page", "Child Page", "Grandchild Page.md")).Should().BeTrue();
+        }
+        finally
+        {
+            if (Directory.Exists(outputPath)) Directory.Delete(outputPath, true);
+        }
+    }
+
+    [Fact]
+    public async Task ExportSelectedAsync_WithOnlySelectedSubpage_CreatesParentFolderWithoutParentMarkdown()
+    {
+        var outputPath = CreateTempExportPath();
+        var service = new ExportService(new FakeOneNoteExportSource(), new RecordingMarkdownConverter(), new PassthroughMarkdownLintService());
+        var notebooks = CreateParentSubpageHierarchy(parentSelected: false, childSelected: true);
+        var options = new ExportOptions { OutputPath = outputPath, ApplyLinting = false, Overwrite = true };
+
+        try
+        {
+            var result = await service.ExportSelectedAsync(notebooks, options);
+
+            result.Success.Should().BeTrue();
+            File.Exists(Path.Combine(outputPath, "Notebook", "Section", "Parent Page.md")).Should().BeFalse();
+            Directory.Exists(Path.Combine(outputPath, "Notebook", "Section", "Parent Page")).Should().BeTrue();
+            File.Exists(Path.Combine(outputPath, "Notebook", "Section", "Parent Page", "Child Page.md")).Should().BeTrue();
+        }
+        finally
+        {
+            if (Directory.Exists(outputPath)) Directory.Delete(outputPath, true);
+        }
+    }
+
     private static List<OneNoteItem> CreateSelectedHierarchy(DateTimeOffset? created = null, DateTimeOffset? modified = null)
     {
         return new List<OneNoteItem>
@@ -393,6 +439,57 @@ public class ExportServiceTests
                                 Type = OneNoteItemType.Page,
                                 CreatedTime = created,
                                 LastModifiedTime = modified
+                            }
+                        }
+                    }
+                }
+            }
+        };
+    }
+
+    private static List<OneNoteItem> CreateParentSubpageHierarchy(bool parentSelected, bool childSelected)
+    {
+        return new List<OneNoteItem>
+        {
+            new OneNoteItem
+            {
+                Id = "notebook-id",
+                Name = "Notebook",
+                Type = OneNoteItemType.Notebook,
+                Children =
+                {
+                    new OneNoteItem
+                    {
+                        Id = "section-id",
+                        Name = "Section",
+                        Type = OneNoteItemType.Section,
+                        Children =
+                        {
+                            new OneNoteItem
+                            {
+                                Id = "parent-page-id",
+                                Name = "Parent Page",
+                                Type = OneNoteItemType.Page,
+                                IsSelected = parentSelected,
+                                Children =
+                                {
+                                    new OneNoteItem
+                                    {
+                                        Id = "child-page-id",
+                                        Name = "Child Page",
+                                        Type = OneNoteItemType.Page,
+                                        IsSelected = childSelected,
+                                        Children =
+                                        {
+                                            new OneNoteItem
+                                            {
+                                                Id = "grandchild-page-id",
+                                                Name = "Grandchild Page",
+                                                Type = OneNoteItemType.Page
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }

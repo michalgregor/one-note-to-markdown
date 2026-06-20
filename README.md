@@ -213,12 +213,27 @@ updated: "2024-02-20 14:45 UTC"
 ---
 ```
 
-### Subpages
+### Pages, Subpages, And Sub-subpages
 
-OneNote subpages are preserved as nested folders. A parent page is exported as Markdown beside a folder with the same name, and its subpages are exported inside that folder.
+A OneNote page exports as a Markdown file. When that page has subpages, the exporter also creates a matching folder with the same name. The Markdown file is the page itself. The matching folder is the expanded subpage area under that page.
+
+For a page with one subpage, the layout looks like this:
 
 ```text
-Section A\
+Section\
+  Strategic Vision.md
+  Strategic Vision\
+    Subpage for Testing.md
+  Goals.md
+  Ideas.md
+```
+
+`Strategic Vision.md` is the OneNote page. `Strategic Vision\` is the matching folder that contains subpages of that page. `Goals.md` and `Ideas.md` remain peer pages in the same section.
+
+The same pattern repeats for sub-subpages:
+
+```text
+Section\
   Parent Page.md
   Parent Page\
     Child Page.md
@@ -226,7 +241,9 @@ Section A\
       Grandchild Page.md
 ```
 
-If you export only a subpage, the parent folders are still created so the exported file keeps its place in the original hierarchy.
+`Child Page.md` is the subpage itself, and `Child Page\` contains that subpage's children.
+
+If only a subpage is selected for export, the parent folder is still created so the exported page keeps its OneNote context, but the unselected parent page Markdown is not exported.
 
 ### Windows Safe Names
 
