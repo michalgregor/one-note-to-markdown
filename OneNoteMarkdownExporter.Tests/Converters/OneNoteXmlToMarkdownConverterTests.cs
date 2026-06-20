@@ -249,7 +249,7 @@ public class OneNoteXmlToMarkdownConverterTests
     }
 
     [Fact]
-    public void Convert_NakedUrl_ContainsLink()
+    public void Convert_NakedUrlAnchor_ConvertsToAutolink()
     {
         // Arrange - when link text matches URL
         var xml = CreatePageXml(@"<one:T><![CDATA[<a href=""https://example.com"">https://example.com</a>]]></one:T>");
@@ -257,8 +257,75 @@ public class OneNoteXmlToMarkdownConverterTests
         // Act
         var result = _converter.Convert(xml, "", "assets", null, "test");
 
-        // Assert - URL should be preserved in some link format
-        result.Should().Contain("https://example.com");
+        // Assert
+        result.Should().Contain("<https://example.com>");
+    }
+
+    [Fact]
+    public void Convert_PlainBareUrl_WrapsInAngleBrackets()
+    {
+        // Arrange
+        var xml = CreatePageXml(@"<one:T><![CDATA[Visit https://example.com for details]]></one:T>");
+
+        // Act
+        var result = _converter.Convert(xml, "", "assets", null, "test");
+
+        // Assert
+        result.Should().Contain("Visit <https://example.com> for details");
+    }
+
+    [Fact]
+    public void Convert_PlainBareUrlWithTrailingPeriod_LeavesPeriodOutsideAngleBrackets()
+    {
+        // Arrange
+        var xml = CreatePageXml(@"<one:T><![CDATA[Visit https://example.com.]]></one:T>");
+
+        // Act
+        var result = _converter.Convert(xml, "", "assets", null, "test");
+
+        // Assert
+        result.Should().Contain("Visit <https://example.com>.");
+    }
+
+    [Fact]
+    public void Convert_PlainBareUrlWithTrailingComma_LeavesCommaOutsideAngleBrackets()
+    {
+        // Arrange
+        var xml = CreatePageXml(@"<one:T><![CDATA[Visit https://example.com, then continue]]></one:T>");
+
+        // Act
+        var result = _converter.Convert(xml, "", "assets", null, "test");
+
+        // Assert
+        result.Should().Contain("Visit <https://example.com>, then continue");
+    }
+
+    [Fact]
+    public void Convert_ExistingAutolink_DoesNotDoubleWrap()
+    {
+        // Arrange
+        var xml = CreatePageXml(@"<one:T><![CDATA[Visit <https://example.com>]]></one:T>");
+
+        // Act
+        var result = _converter.Convert(xml, "", "assets", null, "test");
+
+        // Assert
+        result.Should().Contain("Visit <https://example.com>");
+        result.Should().NotContain("<<https://example.com>>");
+    }
+
+    [Fact]
+    public void Convert_MarkdownLink_DoesNotWrapHref()
+    {
+        // Arrange
+        var xml = CreatePageXml(@"<one:T><![CDATA[See [Example](https://example.com)]]></one:T>");
+
+        // Act
+        var result = _converter.Convert(xml, "", "assets", null, "test");
+
+        // Assert
+        result.Should().Contain("See [Example](https://example.com)");
+        result.Should().NotContain("[Example](<https://example.com>)");
     }
 
     [Fact]

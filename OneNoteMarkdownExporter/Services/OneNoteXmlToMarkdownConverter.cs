@@ -608,6 +608,8 @@ namespace OneNoteMarkdownExporter.Services
             markdown = markdown.Replace("&lt;", "<");
             markdown = markdown.Replace("&gt;", ">");
             markdown = markdown.Replace("&quot;", "\"");
+
+            markdown = WrapBareUrls(markdown);
             
             // Remove empty paragraphs
             markdown = Regex.Replace(markdown, @"\n\n\n+", "\n\n");
@@ -620,6 +622,50 @@ namespace OneNoteMarkdownExporter.Services
             }
             
             return string.Join("\n", lines).Trim();
+        }
+
+        private static string WrapBareUrls(string markdown)
+        {
+            return Regex.Replace(markdown,
+                @"https?://[^\s<>\]]+",
+                match => {
+                    if (IsAlreadyAutolink(markdown, match.Index) || IsMarkdownLinkDestination(markdown, match.Index))
+                    {
+                        return match.Value;
+                    }
+
+                    var url = match.Value;
+                    var trailing = "";
+
+                    while (url.Length > 0 && IsTrailingUrlPunctuation(url[^1]))
+                    {
+                        trailing = url[^1] + trailing;
+                        url = url[..^1];
+                    }
+
+                    return url.Length == 0 ? match.Value : $"<{url}>{trailing}";
+                });
+        }
+
+        private static bool IsAlreadyAutolink(string markdown, int urlStartIndex)
+        {
+            return urlStartIndex > 0 && markdown[urlStartIndex - 1] == '<';
+        }
+
+        private static bool IsMarkdownLinkDestination(string markdown, int urlStartIndex)
+        {
+            return urlStartIndex > 1 && markdown[urlStartIndex - 1] == '(' && markdown[urlStartIndex - 2] == ']';
+        }
+
+        private static bool IsTrailingUrlPunctuation(char character)
+        {
+            return character == '.'
+                || character == ','
+                || character == ';'
+                || character == ':'
+                || character == '!'
+                || character == '?'
+                || character == ')';
         }
 
         /// <summary>
