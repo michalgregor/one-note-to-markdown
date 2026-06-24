@@ -112,7 +112,7 @@ namespace OneNoteMarkdownExporter.Services
 
             var inkPageSnapshotsOption = new Option<bool>("--ink-page-snapshots")
             {
-                Description = "Append full-page SVG snapshots for pages containing pen ink (off by default)"
+                Description = "Append full-page PDF snapshots for pages containing pen ink (off by default)"
             };
 
             var listOption = new Option<bool>("--list")

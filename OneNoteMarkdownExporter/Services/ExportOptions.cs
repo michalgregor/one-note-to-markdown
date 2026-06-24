@@ -65,7 +65,7 @@ namespace OneNoteMarkdownExporter.Services
         public bool IncludeFontColors { get; set; } = false;
 
         /// <summary>
-        /// If true, pages containing OneNote ink are also exported as full-page SVG snapshots
+        /// If true, pages containing OneNote ink are also exported as full-page PDF snapshots
         /// and appended to the Markdown output. Off by default to preserve existing behavior.
         /// </summary>
         public bool ExportInkPageSnapshots { get; set; } = false;

@@ -19,7 +19,7 @@ namespace OneNoteMarkdownExporter.Services
 
         void PublishPage(string pageId, string outputPath);
 
-        void PublishPageAsXps(string pageId, string outputPath);
+        void PublishPageAsPdf(string pageId, string outputPath);
 
         string GetPageContent(string pageId);
 

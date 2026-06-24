@@ -63,7 +63,7 @@
                 <CheckBox x:Name="ExpandCollapsedBox" Content="Try to expand collapsed paragraphs (Writable notebooks only)" IsChecked="True" Margin="0,0,0,5"/>
                 <CheckBox x:Name="OverwriteExistingBox" Content="Overwrite existing files (keeps export in sync)" IsChecked="True" Margin="0,0,0,5"/>
                 <CheckBox x:Name="FontColorsBox" Content="Preserve font (text) colors as inline HTML" IsChecked="False" Margin="0,0,0,5"/>
-                <CheckBox x:Name="InkSnapshotsBox" Content="Append full-page SVG snapshots for pen ink" IsChecked="False" Margin="0,0,0,10"/>
+                <CheckBox x:Name="InkSnapshotsBox" Content="Append full-page PDF snapshots for pen ink" IsChecked="False" Margin="0,0,0,10"/>
 
                 <!-- Linting option - simple toggle -->
                 <CheckBox x:Name="LintMarkdownBox" Content="Apply Markdown linting (markdownlint-cli)" IsChecked="True" Margin="0,0,0,5"/>

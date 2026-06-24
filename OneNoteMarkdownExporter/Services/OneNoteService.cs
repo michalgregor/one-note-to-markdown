@@ -282,7 +282,7 @@ namespace OneNoteMarkdownExporter.Services
             _oneNoteApp.Publish(pageId, outputPath, PublishFormat.pfHTML, "");
         }
 
-        public void PublishPageAsXps(string pageId, string outputPath)
+        public void PublishPageAsPdf(string pageId, string outputPath)
         {
             var directory = System.IO.Path.GetDirectoryName(outputPath);
             if (!string.IsNullOrEmpty(directory) && !System.IO.Directory.Exists(directory))
@@ -290,7 +290,7 @@ namespace OneNoteMarkdownExporter.Services
                 System.IO.Directory.CreateDirectory(directory);
             }
 
-            _oneNoteApp.Publish(pageId, outputPath, PublishFormat.pfXPS, "");
+            _oneNoteApp.Publish(pageId, outputPath, PublishFormat.pfPDF, "");
         }
 
         public string GetPageContent(string pageId)

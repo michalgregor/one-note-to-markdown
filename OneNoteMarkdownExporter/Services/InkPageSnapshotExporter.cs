@@ -25,47 +25,26 @@ namespace OneNoteMarkdownExporter.Services
 
             try
             {
-                var tempXpsPath = Path.Combine(Path.GetTempPath(), $"OneNoteMarkdownExporter_{Guid.NewGuid():N}.xps");
-                try
+                var pdfFileName = ExportPathSanitizer.GetSafePageSnapshotFileName(assetsRoot, pageName, "", ".pdf");
+                var pdfPath = Path.Combine(assetsRoot, pdfFileName);
+
+                oneNoteService.PublishPageAsPdf(pageId, pdfPath);
+                if (!File.Exists(pdfPath))
                 {
-                    oneNoteService.PublishPageAsXps(pageId, tempXpsPath);
-                    var svgPaths = XpsToSvgConverter.ConvertToSvgFiles(tempXpsPath, assetsRoot, pageName);
-                    if (svgPaths.Count == 0)
-                    {
-                        return markdown;
-                    }
-
-                    var builder = new StringBuilder();
-                    builder.Append(markdown.TrimEnd());
-                    builder.AppendLine();
-                    builder.AppendLine();
-                    builder.AppendLine("## Page snapshot");
-                    builder.AppendLine();
-
-                    foreach (var svgPath in svgPaths)
-                    {
-                        var relativePath = $"{relativeAssetsPath}/{Path.GetFileName(svgPath)}".Replace("\\", "/");
-                        builder.AppendLine($"![Page snapshot]({relativePath})");
-                        builder.AppendLine();
-                    }
-
-                    progress?.Report($"  Exported page snapshot SVG for ink: {pageName}");
-                    return builder.ToString().TrimEnd();
+                    return markdown;
                 }
-                finally
-                {
-                    try
-                    {
-                        if (File.Exists(tempXpsPath))
-                        {
-                            File.Delete(tempXpsPath);
-                        }
-                    }
-                    catch
-                    {
-                        // Best-effort cleanup only.
-                    }
-                }
+
+                var relativePath = $"{relativeAssetsPath}/{Path.GetFileName(pdfPath)}".Replace("\\", "/");
+                var builder = new StringBuilder();
+                builder.Append(markdown.TrimEnd());
+                builder.AppendLine();
+                builder.AppendLine();
+                builder.AppendLine("## Page snapshot");
+                builder.AppendLine();
+                builder.AppendLine($"[Open page snapshot PDF]({relativePath})");
+
+                progress?.Report($"  Exported page snapshot PDF for ink: {pageName}");
+                return builder.ToString().TrimEnd();
             }
             catch (Exception ex)
             {
