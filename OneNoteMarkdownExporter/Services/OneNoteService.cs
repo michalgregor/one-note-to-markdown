@@ -282,6 +282,17 @@ namespace OneNoteMarkdownExporter.Services
             _oneNoteApp.Publish(pageId, outputPath, PublishFormat.pfHTML, "");
         }
 
+        public void PublishPageAsXps(string pageId, string outputPath)
+        {
+            var directory = System.IO.Path.GetDirectoryName(outputPath);
+            if (!string.IsNullOrEmpty(directory) && !System.IO.Directory.Exists(directory))
+            {
+                System.IO.Directory.CreateDirectory(directory);
+            }
+
+            _oneNoteApp.Publish(pageId, outputPath, PublishFormat.pfXPS, "");
+        }
+
         public string GetPageContent(string pageId)
         {
             string xml;

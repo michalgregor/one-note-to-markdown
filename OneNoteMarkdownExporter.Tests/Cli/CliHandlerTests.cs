@@ -315,6 +315,19 @@ public class CliHandlerTests
         result.Should().BeTrue();
     }
 
+    [Fact]
+    public void ShouldRunCli_WithInkPageSnapshotsFlag_ReturnsTrue()
+    {
+        // Arrange
+        var args = new[] { "--ink-page-snapshots" };
+
+        // Act
+        var result = CliHandler.ShouldRunCli(args);
+
+        // Assert
+        result.Should().BeTrue();
+    }
+
     #endregion
 
     #region Case Sensitivity Tests

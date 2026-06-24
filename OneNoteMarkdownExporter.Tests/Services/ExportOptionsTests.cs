@@ -209,6 +209,16 @@ public class ExportOptionsTests
     }
 
     [Fact]
+    public void ExportInkPageSnapshots_DefaultsToFalse()
+    {
+        // Arrange
+        var options = new ExportOptions();
+
+        // Assert
+        options.ExportInkPageSnapshots.Should().BeFalse();
+    }
+
+    [Fact]
     public void ExportAll_DefaultsToFalse()
     {
         // Arrange

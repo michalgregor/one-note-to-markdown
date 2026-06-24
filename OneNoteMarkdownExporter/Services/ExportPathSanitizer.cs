@@ -92,6 +92,15 @@ namespace OneNoteMarkdownExporter.Services
             return FitComponentToPath(assetsFolder, stem, normalizedExtension, pagePrefix + preferredName + attachmentIndex, MaxWin32PathLength);
         }
 
+        public static string GetSafePageSnapshotFileName(string assetsFolder, string? pagePrefix, string suffix, string extension)
+        {
+            var normalizedExtension = NormalizeExtension(extension);
+            var safePrefix = SanitizeComponent(pagePrefix, "page", pagePrefix).Replace(' ', '_');
+            var stem = $"{safePrefix}_page_snapshot{suffix}";
+
+            return FitComponentToPath(assetsFolder, stem, normalizedExtension, pagePrefix + suffix, MaxWin32PathLength);
+        }
+
         private static string SanitizeRawComponent(string? name)
         {
             if (string.IsNullOrWhiteSpace(name))

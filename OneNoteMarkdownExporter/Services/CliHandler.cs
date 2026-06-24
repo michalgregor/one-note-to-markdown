@@ -39,7 +39,7 @@ namespace OneNoteMarkdownExporter.Services
             {
                 "--all", "--notebook", "--section", "--page", "--output", "-o",
                 "--assets-folder", "--overwrite", "--no-lint", "--lint-config",
-                "--font-colors",
+                "--font-colors", "--ink-page-snapshots",
                 "--list", "--dry-run", "--verbose", "-v", "--quiet", "-q",
                 "--help", "-h", "-?", "--version"
             };
@@ -110,6 +110,11 @@ namespace OneNoteMarkdownExporter.Services
                 Description = "Preserve font (text) colors as inline HTML (off by default)"
             };
 
+            var inkPageSnapshotsOption = new Option<bool>("--ink-page-snapshots")
+            {
+                Description = "Append full-page SVG snapshots for pages containing pen ink (off by default)"
+            };
+
             var listOption = new Option<bool>("--list")
             {
                 Description = "List available notebooks, sections, and pages without exporting"
@@ -141,6 +146,7 @@ namespace OneNoteMarkdownExporter.Services
             rootCommand.Options.Add(noLintOption);
             rootCommand.Options.Add(lintConfigOption);
             rootCommand.Options.Add(fontColorsOption);
+            rootCommand.Options.Add(inkPageSnapshotsOption);
             rootCommand.Options.Add(listOption);
             rootCommand.Options.Add(dryRunOption);
             rootCommand.Options.Add(verboseOption);
@@ -160,6 +166,7 @@ namespace OneNoteMarkdownExporter.Services
                     ApplyLinting = !result.GetValue(noLintOption),
                     LintConfigPath = result.GetValue(lintConfigOption),
                     IncludeFontColors = result.GetValue(fontColorsOption),
+                    ExportInkPageSnapshots = result.GetValue(inkPageSnapshotsOption),
                     DryRun = result.GetValue(dryRunOption),
                     Verbose = result.GetValue(verboseOption),
                     Quiet = result.GetValue(quietOption)
@@ -216,6 +223,7 @@ namespace OneNoteMarkdownExporter.Services
                     Console.WriteLine($"Assets directory: {AssetPathResolver.ResolveAssetsFolderPath(options.OutputPath, options.AssetsFolderPath)}");
                     Console.WriteLine($"Overwrite: {(options.Overwrite ? "Yes" : "No")}");
                     Console.WriteLine($"Linting: {(options.ApplyLinting ? "Enabled (markdownlint-cli)" : "Disabled")}");
+                    Console.WriteLine($"Ink page snapshots: {(options.ExportInkPageSnapshots ? "Enabled" : "Disabled")}");
                     if (options.DryRun) Console.WriteLine("Mode: DRY RUN (no files will be created)");
                     Console.WriteLine();
                 }

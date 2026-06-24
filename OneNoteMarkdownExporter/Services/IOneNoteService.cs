@@ -19,6 +19,8 @@ namespace OneNoteMarkdownExporter.Services
 
         void PublishPage(string pageId, string outputPath);
 
+        void PublishPageAsXps(string pageId, string outputPath);
+
         string GetPageContent(string pageId);
 
         /// <summary>Retrieves base64 binary content referenced by a callbackID, or null if unavailable.</summary>

@@ -220,6 +220,7 @@ namespace OneNoteMarkdownExporter
             bool expandCollapsed = ExpandCollapsedBox.IsChecked == true;
             bool overwriteExisting = OverwriteExistingBox.IsChecked == true;
             bool applyLinting = LintMarkdownBox.IsChecked == true;
+            bool exportInkPageSnapshots = InkSnapshotsBox.IsChecked == true;
             _xmlConverter.IncludeFontColors = FontColorsBox.IsChecked == true;
             string assetsRoot;
             try
@@ -258,7 +259,7 @@ namespace OneNoteMarkdownExporter
                     foreach (var item in items)
                     {
                         if (token.IsCancellationRequested) break;
-                        ExportItem(item, rootPath, rootPath, assetsRoot, expandCollapsed, overwriteExisting, applyLinting, token, progressState);
+                        ExportItem(item, rootPath, rootPath, assetsRoot, expandCollapsed, overwriteExisting, applyLinting, exportInkPageSnapshots, token, progressState);
                     }
                     
                     if (token.IsCancellationRequested)
@@ -354,7 +355,7 @@ namespace OneNoteMarkdownExporter
             }
         }
 
-        private void ExportItem(OneNoteItem item, string currentPath, string rootPath, string assetsRoot, bool expandCollapsed, bool overwriteExisting, bool applyLinting, CancellationToken token, ExportProgressState progressState, bool isImplicitlySelected = false)
+        private void ExportItem(OneNoteItem item, string currentPath, string rootPath, string assetsRoot, bool expandCollapsed, bool overwriteExisting, bool applyLinting, bool exportInkPageSnapshots, CancellationToken token, ExportProgressState progressState, bool isImplicitlySelected = false)
         {
             if (token.IsCancellationRequested) return;
 
@@ -378,7 +379,7 @@ namespace OneNoteMarkdownExporter
                 {
                     if (token.IsCancellationRequested) return;
 
-                    ExportItem(child, myPath, rootPath, assetsRoot, expandCollapsed, overwriteExisting, applyLinting, token, progressState, isSelected);
+                    ExportItem(child, myPath, rootPath, assetsRoot, expandCollapsed, overwriteExisting, applyLinting, exportInkPageSnapshots, token, progressState, isSelected);
                 }
             }
             else
@@ -386,7 +387,7 @@ namespace OneNoteMarkdownExporter
                 // It's a page
                 if (isSelected)
                 {
-                    var exported = ExportPage(item, currentPath, rootPath, assetsRoot, expandCollapsed, overwriteExisting, applyLinting, token);
+                    var exported = ExportPage(item, currentPath, rootPath, assetsRoot, expandCollapsed, overwriteExisting, applyLinting, exportInkPageSnapshots, token);
                     if (exported)
                     {
                         progressState.ExportedPages++;
@@ -411,7 +412,7 @@ namespace OneNoteMarkdownExporter
                     {
                         if (token.IsCancellationRequested) return;
 
-                        ExportItem(child, myPath, rootPath, assetsRoot, expandCollapsed, overwriteExisting, applyLinting, token, progressState, isSelected);
+                        ExportItem(child, myPath, rootPath, assetsRoot, expandCollapsed, overwriteExisting, applyLinting, exportInkPageSnapshots, token, progressState, isSelected);
                     }
                 }
             }
@@ -471,7 +472,7 @@ namespace OneNoteMarkdownExporter
             FailureLogBox.ScrollToEnd();
         }
 
-        private bool ExportPage(OneNoteItem page, string folderPath, string rootPath, string assetsRoot, bool expandCollapsed, bool overwriteExisting, bool applyLinting, CancellationToken token)
+        private bool ExportPage(OneNoteItem page, string folderPath, string rootPath, string assetsRoot, bool expandCollapsed, bool overwriteExisting, bool applyLinting, bool exportInkPageSnapshots, CancellationToken token)
         {
             if (_oneNoteService == null) return false;
             if (token.IsCancellationRequested) return false;
@@ -514,6 +515,19 @@ namespace OneNoteMarkdownExporter
                 // Convert XML directly to Markdown (no Publish API needed)
                 // Use page name as prefix to avoid image filename collisions across pages
                 var markdown = _xmlConverter.Convert(pageXml, assetsRoot, relativeAssetsPath, binaryFetcher, page.Name);
+
+                if (exportInkPageSnapshots)
+                {
+                    markdown = InkPageSnapshotExporter.AppendSnapshotsToMarkdown(
+                        markdown,
+                        pageXml,
+                        page.Id,
+                        page.Name,
+                        assetsRoot,
+                        relativeAssetsPath,
+                        _oneNoteService,
+                        new Progress<string>(message => Dispatcher.Invoke(() => Log(message))));
+                }
                 
                 // Apply linting if enabled (using markdownlint-cli)
                 if (applyLinting)

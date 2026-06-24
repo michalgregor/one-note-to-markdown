@@ -154,6 +154,10 @@ namespace OneNoteMarkdownExporter.Services
             var assetsRoot = AssetPathResolver.ResolveAssetsFolderPath(outputPath, options.AssetsFolderPath);
             var relativeAssetsPath = AssetPathResolver.GetRelativeAssetsPath(outputPath, assetsRoot);
             var markdown = _xmlConverter.Convert(pageXml, assetsRoot, relativeAssetsPath, binaryFetcher, pagePrefix);
+            if (options.ExportInkPageSnapshots)
+            {
+                markdown = InkPageSnapshotExporter.AppendSnapshotsToMarkdown(markdown, pageXml, pageId, pagePrefix, assetsRoot, relativeAssetsPath, _oneNoteService);
+            }
 
             if (options.ApplyLinting)
             {
@@ -437,6 +441,10 @@ namespace OneNoteMarkdownExporter.Services
                 // Convert XML directly to Markdown (no Publish API needed)
                 // Use page name as prefix to avoid image filename collisions across pages
                 var markdown = _xmlConverter.Convert(pageXml, assetsRoot, relativeAssetsPath, binaryFetcher, page.Name);
+                if (options.ExportInkPageSnapshots)
+                {
+                    markdown = InkPageSnapshotExporter.AppendSnapshotsToMarkdown(markdown, pageXml, page.Id, page.Name, assetsRoot, relativeAssetsPath, _oneNoteService, progress);
+                }
 
                 // Apply linting if enabled (using markdownlint-cli)
                 if (options.ApplyLinting)
@@ -466,6 +474,7 @@ namespace OneNoteMarkdownExporter.Services
                 progress?.Report($"  Error exporting '{page.Name}': {ex.Message}");
             }
         }
+
     }
 
     /// <summary>

@@ -36,6 +36,7 @@ Go to [GitHub Releases](https://github.com/segunak/one-note-to-markdown/releases
 - **Rich text formatting** - Bold, italic, strikethrough, highlights (Obsidian `==`/colored `<mark>`), underline, super/subscript, headings, and to-do checkboxes (see [Formatting support](#formatting-support))
 - **Image extraction** - Embedded images saved to a configurable assets folder with relative paths
 - **File attachments** - PDFs, Office documents, and other inserted/media files are copied to the assets folder and linked (previously dropped silently)
+- **Optional ink snapshots** - Pages containing pen ink can append full-page SVG snapshots generated from OneNote's XPS export
 - **Sync-friendly** - "Overwrite existing files" option keeps exports in sync with your notes
 - **Markdown linting** - Automatic cleanup via bundled markdownlint-cli (configurable)
 
@@ -63,6 +64,7 @@ Double-click `OneNoteMarkdownExporter.exe` to launch the graphical interface.
 5. **Configure options**:
    - **Overwrite existing files** - Enable this for ongoing syncing
    - **Apply Markdown linting** - Cleans up the output (can be toggled off)
+   - **Append full-page SVG snapshots for pen ink** - Optional; off by default
 6. **Click Start Export**
 
 ## CLI Mode
@@ -110,6 +112,7 @@ OneNoteMarkdownExporter.exe --help
 | Option | Description |
 |--------|-------------|
 | `--font-colors` | Preserve font (text) colors as inline HTML `<span style="color:…">` (off by default) |
+| `--ink-page-snapshots` | Append full-page SVG snapshots for pages containing pen ink (off by default) |
 
 #### Linting
 
@@ -157,6 +160,9 @@ OneNoteMarkdownExporter.exe --all --output "D:\Backups\OneNote" --verbose --over
 
 # Export notes and store assets in a separate folder
 OneNoteMarkdownExporter.exe --all --output "D:\Backups\OneNote" --assets-folder "D:\Backups\OneNoteAssets"
+
+# Export pages with pen ink and append full-page SVG snapshots
+OneNoteMarkdownExporter.exe --all --ink-page-snapshots
 ```
 
 ### Assets Folder
@@ -166,6 +172,10 @@ Exported images are saved to `<output>\assets` by default. Use the GUI assets fo
 ### Attachments
 
 Inserted files (PDFs, Office documents, etc.) and embedded media files are copied into the assets folder and linked from the Markdown using their original display name. When an attachment's binary isn't available locally, a clear `[Attachment unavailable: ...]` placeholder is written instead of silently dropping it.
+
+### Pen Ink Snapshots
+
+By default, pen ink is not exported, preserving the legacy text-first behavior. Enable the GUI checkbox or pass `--ink-page-snapshots` to detect pages containing OneNote `InkDrawing` content, publish those pages to XPS through OneNote, convert the XPS vector paths and basic text glyphs to SVG, save the SVG in the assets folder, and append it to the Markdown under a `Page snapshot` heading. Snapshot export is non-blocking: if OneNote cannot publish or convert a snapshot, the normal Markdown export continues and a warning is logged.
 
 ### Formatting support
 
