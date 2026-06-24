@@ -92,6 +92,44 @@ namespace OneNoteMarkdownExporter.Services
             return FitComponentToPath(assetsFolder, stem, normalizedExtension, pagePrefix + preferredName + attachmentIndex, MaxWin32PathLength);
         }
 
+        public static string GetSafeAssetScopeDirectoryPath(
+            string parentPath,
+            string prefix,
+            string? scopeName,
+            string? stableId = null,
+            ISet<string>? claimedNames = null)
+        {
+            var baseName = GetAssetScopeFolderName(prefix, scopeName);
+            var stableInput = stableId ?? scopeName ?? baseName;
+            var folderName = FitComponentToPath(parentPath, baseName, string.Empty, stableInput, MaxWin32DirectoryPathLength);
+
+            if (claimedNames == null || claimedNames.Add(folderName))
+            {
+                return Path.Combine(parentPath, folderName);
+            }
+
+            var hash = GetStableHash(stableInput);
+            var uniqueStem = $"{baseName}_{hash}";
+            folderName = FitComponentToPath(parentPath, uniqueStem, string.Empty, stableInput, MaxWin32DirectoryPathLength);
+
+            var counter = 2;
+            while (!claimedNames.Add(folderName))
+            {
+                folderName = FitComponentToPath(parentPath, $"{uniqueStem}_{counter}", string.Empty, stableInput, MaxWin32DirectoryPathLength);
+                counter++;
+            }
+
+            return Path.Combine(parentPath, folderName);
+        }
+
+        public static string GetAssetScopeFolderName(string prefix, string? scopeName)
+        {
+            var safePrefix = SanitizeComponent(prefix, "assets").Replace(" ", string.Empty);
+            var suffix = ToPascalCaseScopeName(scopeName);
+
+            return $"{safePrefix}_{suffix}";
+        }
+
         private static string SanitizeRawComponent(string? name)
         {
             if (string.IsNullOrWhiteSpace(name))
@@ -102,13 +140,78 @@ namespace OneNoteMarkdownExporter.Services
             var sanitized = new StringBuilder(name.Length);
             foreach (var character in name)
             {
-                sanitized.Append(IsInvalidWindowsFileNameCharacter(character) ? '_' : character);
+                sanitized.Append(GetSafeReplacementCharacter(character));
             }
 
             var result = Regex.Replace(sanitized.ToString(), "_{2,}", "_").Trim();
             result = TrimTrailingSpacesAndPeriods(result);
 
             return result;
+        }
+
+        private static char GetSafeReplacementCharacter(char character)
+        {
+            if (character == '/' || character == '\\')
+            {
+                return '-';
+            }
+
+            return IsInvalidWindowsFileNameCharacter(character) ? '_' : character;
+        }
+
+        private static string ToPascalCaseScopeName(string? name)
+        {
+            var sanitized = SanitizeRawComponent(name);
+            var parts = new List<string>();
+            var current = new StringBuilder();
+
+            foreach (var character in sanitized)
+            {
+                if (char.IsLetterOrDigit(character))
+                {
+                    current.Append(character);
+                }
+                else if (IsWordJoinerPunctuation(character))
+                {
+                    continue;
+                }
+                else if (current.Length > 0)
+                {
+                    parts.Add(current.ToString());
+                    current.Clear();
+                }
+            }
+
+            if (current.Length > 0)
+            {
+                parts.Add(current.ToString());
+            }
+
+            if (parts.Count == 0)
+            {
+                return "Assets";
+            }
+
+            var result = new StringBuilder();
+            foreach (var part in parts)
+            {
+                result.Append(char.ToUpperInvariant(part[0]));
+                if (part.Length > 1)
+                {
+                    result.Append(part[1..]);
+                }
+            }
+
+            return ProtectReservedName(result.ToString());
+        }
+
+        private static bool IsWordJoinerPunctuation(char character)
+        {
+            return character == '\''
+                || character == '\u2019'
+                || character == '\u2018'
+                || character == '\u02bc'
+                || character == '\uff07';
         }
 
         private static string TrimTrailingSpacesAndPeriods(string value)
@@ -138,7 +241,7 @@ namespace OneNoteMarkdownExporter.Services
 
         private static bool IsEmptySanitizedName(string name)
         {
-            return string.IsNullOrWhiteSpace(name) || name.Trim('_').Length == 0;
+            return string.IsNullOrWhiteSpace(name) || name.All(character => character == '_' || character == '-' || char.IsWhiteSpace(character));
         }
 
         private static string ProtectReservedName(string component)

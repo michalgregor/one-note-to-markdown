@@ -7,7 +7,7 @@ namespace OneNoteMarkdownExporter.Services
     /// </summary>
     public static class AssetPathResolver
     {
-        public const string DefaultAssetsFolderName = "assets";
+        public const string DefaultAssetsFolderName = "_assets";
 
         public static string GetDefaultAssetsFolderPath(string outputPath)
         {

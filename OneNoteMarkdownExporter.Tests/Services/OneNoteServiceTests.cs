@@ -114,4 +114,99 @@ public class OneNoteServiceTests
         pages.Should().ContainSingle().Which.Name.Should().Be("First Page");
         first.Children.Should().ContainSingle().Which.Name.Should().Be("Child Page");
     }
+
+    [Fact]
+    public void ParseHierarchyXml_ReadsCreatedTimeFromDateTimeAttribute()
+    {
+        var xml = """
+            <one:Notebooks xmlns:one="http://schemas.microsoft.com/office/onenote/2013/onenote">
+              <one:Notebook ID="notebook-id" name="Notebook">
+                <one:Section ID="section-id" name="Section">
+                  <one:Page ID="page-id" name="Page" dateTime="2024-01-15T10:30:00Z" />
+                </one:Section>
+              </one:Notebook>
+            </one:Notebooks>
+            """;
+
+        var page = OneNoteService.ParseHierarchyXml(xml).Single().Children.Single().Children.Single();
+
+        page.CreatedTime.Should().NotBeNull();
+        page.CreatedTime!.Value.UtcDateTime.Should().Be(new DateTime(2024, 1, 15, 10, 30, 0, DateTimeKind.Utc));
+    }
+
+    [Fact]
+    public void ParseHierarchyXml_ReadsLastModifiedTimeFromLastModifiedTimeAttribute()
+    {
+        var xml = """
+            <one:Notebooks xmlns:one="http://schemas.microsoft.com/office/onenote/2013/onenote">
+              <one:Notebook ID="notebook-id" name="Notebook">
+                <one:Section ID="section-id" name="Section">
+                  <one:Page ID="page-id" name="Page" lastModifiedTime="2024-02-20T14:45:30Z" />
+                </one:Section>
+              </one:Notebook>
+            </one:Notebooks>
+            """;
+
+        var page = OneNoteService.ParseHierarchyXml(xml).Single().Children.Single().Children.Single();
+
+        page.LastModifiedTime.Should().NotBeNull();
+        page.LastModifiedTime!.Value.UtcDateTime.Should().Be(new DateTime(2024, 2, 20, 14, 45, 30, DateTimeKind.Utc));
+    }
+
+    [Fact]
+    public void ParseHierarchyXml_MissingDateAttributes_LeavesDatesNull()
+    {
+        var xml = """
+            <one:Notebooks xmlns:one="http://schemas.microsoft.com/office/onenote/2013/onenote">
+              <one:Notebook ID="notebook-id" name="Notebook">
+                <one:Section ID="section-id" name="Section">
+                  <one:Page ID="page-id" name="Page" />
+                </one:Section>
+              </one:Notebook>
+            </one:Notebooks>
+            """;
+
+        var page = OneNoteService.ParseHierarchyXml(xml).Single().Children.Single().Children.Single();
+
+        page.CreatedTime.Should().BeNull();
+        page.LastModifiedTime.Should().BeNull();
+    }
+
+    [Fact]
+    public void ParseHierarchyXml_InvalidDateAttributes_LeavesDatesNull()
+    {
+        var xml = """
+            <one:Notebooks xmlns:one="http://schemas.microsoft.com/office/onenote/2013/onenote">
+              <one:Notebook ID="notebook-id" name="Notebook">
+                <one:Section ID="section-id" name="Section">
+                  <one:Page ID="page-id" name="Page" dateTime="not-a-date" lastModifiedTime="garbage" />
+                </one:Section>
+              </one:Notebook>
+            </one:Notebooks>
+            """;
+
+        var page = OneNoteService.ParseHierarchyXml(xml).Single().Children.Single().Children.Single();
+
+        page.CreatedTime.Should().BeNull();
+        page.LastModifiedTime.Should().BeNull();
+    }
+
+    [Fact]
+    public void ParseHierarchyXml_OffsetAwareDateAttributes_PreserveInstant()
+    {
+        var xml = """
+            <one:Notebooks xmlns:one="http://schemas.microsoft.com/office/onenote/2013/onenote">
+              <one:Notebook ID="notebook-id" name="Notebook">
+                <one:Section ID="section-id" name="Section">
+                  <one:Page ID="page-id" name="Page" dateTime="2024-01-15T10:30:00+03:00" lastModifiedTime="2024-02-20T14:45:00-05:00" />
+                </one:Section>
+              </one:Notebook>
+            </one:Notebooks>
+            """;
+
+        var page = OneNoteService.ParseHierarchyXml(xml).Single().Children.Single().Children.Single();
+
+        page.CreatedTime!.Value.UtcDateTime.Should().Be(new DateTime(2024, 1, 15, 7, 30, 0, DateTimeKind.Utc));
+        page.LastModifiedTime!.Value.UtcDateTime.Should().Be(new DateTime(2024, 2, 20, 19, 45, 0, DateTimeKind.Utc));
+    }
 }

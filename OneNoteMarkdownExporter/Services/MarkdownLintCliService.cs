@@ -10,7 +10,7 @@ namespace OneNoteMarkdownExporter.Services
     /// Service for running markdownlint-cli using the bundled Node.js runtime.
     /// This provides full markdownlint compatibility without requiring users to install Node.js.
     /// </summary>
-    public class MarkdownLintCliService
+    public class MarkdownLintCliService : IMarkdownLintService
     {
         private readonly string _nodeExePath;
         private readonly string _markdownLintPath;

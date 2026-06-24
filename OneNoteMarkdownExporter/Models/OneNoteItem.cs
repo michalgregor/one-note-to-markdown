@@ -33,6 +33,9 @@ namespace OneNoteMarkdownExporter.Models
         /// Only meaningful for pages; containers keep the default value.
         /// </summary>
         public int PageLevel { get; set; } = 0;
+
+        public DateTimeOffset? CreatedTime { get; set; }
+        public DateTimeOffset? LastModifiedTime { get; set; }
         
         public bool IsExpanded 
         { 

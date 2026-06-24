@@ -199,6 +199,19 @@ public class CliHandlerTests
     }
 
     [Fact]
+    public void ShouldRunCli_WithAssetOrganizationFlag_ReturnsTrue()
+    {
+        // Arrange
+        var args = new[] { "--asset-organization", "page" };
+
+        // Act
+        var result = CliHandler.ShouldRunCli(args);
+
+        // Assert
+        result.Should().BeTrue();
+    }
+
+    [Fact]
     public void ShouldRunCli_WithDryRunFlag_ReturnsTrue()
     {
         // Arrange
@@ -290,6 +303,32 @@ public class CliHandlerTests
     }
 
     [Fact]
+    public void ShouldRunCli_WithNoPreserveDatesFlag_ReturnsTrue()
+    {
+        // Arrange
+        var args = new[] { "--no-preserve-dates" };
+
+        // Act
+        var result = CliHandler.ShouldRunCli(args);
+
+        // Assert
+        result.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ShouldRunCli_WithDateMetadataFlag_ReturnsTrue()
+    {
+        // Arrange
+        var args = new[] { "--date-metadata", "yaml" };
+
+        // Act
+        var result = CliHandler.ShouldRunCli(args);
+
+        // Assert
+        result.Should().BeTrue();
+    }
+
+    [Fact]
     public void ShouldRunCli_WithLintConfigFlag_ReturnsTrue()
     {
         // Arrange
@@ -372,6 +411,60 @@ public class CliHandlerTests
         var result = CliHandler.ShouldRunCli(args);
 
         // Assert
+        result.Should().BeFalse();
+    }
+
+    #endregion
+
+    #region Asset Organization Parsing Tests
+
+    [Theory]
+    [InlineData(null, AssetOrganizationMode.Centralized)]
+    [InlineData("", AssetOrganizationMode.Centralized)]
+    [InlineData("centralized", AssetOrganizationMode.Centralized)]
+    [InlineData("notebook", AssetOrganizationMode.Notebook)]
+    [InlineData("section", AssetOrganizationMode.Section)]
+    [InlineData("page", AssetOrganizationMode.Page)]
+    [InlineData("PAGE", AssetOrganizationMode.Page)]
+    public void TryParseAssetOrganizationMode_WithKnownValue_ReturnsTrue(string? value, AssetOrganizationMode expected)
+    {
+        var result = CliHandler.TryParseAssetOrganizationMode(value, out var mode);
+
+        result.Should().BeTrue();
+        mode.Should().Be(expected);
+    }
+
+    [Fact]
+    public void TryParseAssetOrganizationMode_WithUnknownValue_ReturnsFalse()
+    {
+        var result = CliHandler.TryParseAssetOrganizationMode("folder", out _);
+
+        result.Should().BeFalse();
+    }
+
+    #endregion
+
+    #region Date Metadata Parsing Tests
+
+    [Theory]
+    [InlineData(null, DateMetadataMode.None)]
+    [InlineData("", DateMetadataMode.None)]
+    [InlineData("none", DateMetadataMode.None)]
+    [InlineData("yaml", DateMetadataMode.Yaml)]
+    [InlineData("YAML", DateMetadataMode.Yaml)]
+    public void TryParseDateMetadataMode_WithKnownValue_ReturnsTrue(string? value, DateMetadataMode expected)
+    {
+        var result = CliHandler.TryParseDateMetadataMode(value, out var mode);
+
+        result.Should().BeTrue();
+        mode.Should().Be(expected);
+    }
+
+    [Fact]
+    public void TryParseDateMetadataMode_WithUnknownValue_ReturnsFalse()
+    {
+        var result = CliHandler.TryParseDateMetadataMode("json", out _);
+
         result.Should().BeFalse();
     }
 

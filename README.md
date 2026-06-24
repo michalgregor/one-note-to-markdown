@@ -6,7 +6,7 @@ A Windows desktop application that exports Microsoft OneNote notebooks, sections
 
 ## Buy Me a Coffee
 
-This is all [free](https://www.biblegateway.com/passage/?search=Matthew%2010%3A8&version=NIV), but if you're feeling generous, you can [buy me a coffee](https://buymeacoffee.com/segunak), or herbal tea 🍵, which is more my thing!
+This is all [free](https://www.biblegateway.com/passage/?search=Matthew%2010%3A8&version=NIV), but if you're feeling generous, you can [buy me a coffee](https://buymeacoffee.com/segunak), or herbal tea, which is more my thing!
 
 <a href="https://buymeacoffee.com/segunak" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" style="height: 72px !important; width: 260px !important;"></a>
 
@@ -18,7 +18,7 @@ Go to [GitHub Releases](https://github.com/segunak/one-note-to-markdown/releases
 2. Extract the folder (it contains the `.exe` and a `resources` folder)
 3. Run `OneNoteMarkdownExporter.exe`
 
-> **Important:** Keep the `resources` folder in the same directory as the `.exe`. It contains the bundled Node.js runtime and markdownlint-cli needed for Markdown linting.
+> **Important:** Keep the `resources` folder in the same directory as the `.exe`. It contains stuff needed for Markdown linting.
 
 ## Requirements
 
@@ -36,6 +36,8 @@ Go to [GitHub Releases](https://github.com/segunak/one-note-to-markdown/releases
 - **Rich text formatting** - Bold, italic, strikethrough, highlights (Obsidian `==`/colored `<mark>`), underline, super/subscript, headings, and to-do checkboxes (see [Formatting support](#formatting-support))
 - **Image extraction** - Embedded images saved to a configurable assets folder with relative paths
 - **File attachments** - PDFs, Office documents, and other inserted/media files are copied to the assets folder and linked (previously dropped silently)
+- **Asset organization modes** - Store assets centrally, per notebook, per section, or per page
+- **Date preservation** - Exported Markdown files keep OneNote created and modified timestamps
 - **Sync-friendly** - "Overwrite existing files" option keeps exports in sync with your notes
 - **Markdown linting** - Automatic cleanup via bundled markdownlint-cli (configurable)
 
@@ -59,11 +61,15 @@ Double-click `OneNoteMarkdownExporter.exe` to launch the graphical interface.
 1. **Launch the app** - OneNote will open automatically if it's not running
 2. **Select your content** - Check the boxes next to notebooks, sections, or pages
 3. **Choose an output directory** - Defaults to `Downloads\OneNoteExport`
-4. **Choose an assets folder** - Defaults to `<output>\assets`
-5. **Configure options**:
+4. **Choose asset organization** - Defaults to one centralized assets folder
+5. **Choose an assets folder** - Available in centralized mode and defaults to `<output>\_assets`
+6. **Configure options**:
    - **Overwrite existing files** - Enable this for ongoing syncing
    - **Apply Markdown linting** - Cleans up the output (can be toggled off)
-6. **Click Start Export**
+   - **Preserve font colors** - Optional inline HTML spans for colored text
+   - **Preserve OneNote dates as file timestamps** - Sets exported `.md` Created and Modified dates from OneNote
+   - **Add YAML front matter metadata** - Optional; changes Markdown content when enabled
+7. **Click Start Export**
 
 ## CLI Mode
 
@@ -81,6 +87,9 @@ OneNoteMarkdownExporter.exe --all --output "C:\MyExports"
 
 # Export images/assets to a custom folder
 OneNoteMarkdownExporter.exe --all --assets-folder "D:\OneNoteAssets"
+
+# Export with assets grouped per page
+OneNoteMarkdownExporter.exe --all --asset-organization page
 
 # Show help
 OneNoteMarkdownExporter.exe --help
@@ -102,7 +111,8 @@ OneNoteMarkdownExporter.exe --help
 | Option | Description |
 |--------|-------------|
 | `--output`, `-o` `<path>` | Output directory (default: `Downloads\OneNoteExport`) |
-| `--assets-folder <path>` | Folder for exported images/assets (default: `<output>\assets`) |
+| `--assets-folder <path>` | Folder for exported images/assets (default: `<output>\_assets`) |
+| `--asset-organization <mode>` | Asset organization mode: `centralized`, `notebook`, `section`, or `page` |
 | `--overwrite` | Overwrite existing files instead of creating numbered copies |
 
 #### Formatting
@@ -117,6 +127,13 @@ OneNoteMarkdownExporter.exe --help
 |--------|-------------|
 | `--no-lint` | Disable Markdown linting (markdownlint-cli) |
 | `--lint-config <path>` | Path to custom `.markdownlint.json` configuration file |
+
+#### Dates
+
+| Option | Description |
+|--------|-------------|
+| `--no-preserve-dates` | Do not set exported `.md` file timestamps from OneNote dates |
+| `--date-metadata <mode>` | Date metadata mode: `none` or `yaml` (default: `none`) |
 
 #### Utility
 
@@ -149,6 +166,12 @@ OneNoteMarkdownExporter.exe --section "Work Notes/Meeting Notes"
 # Export everything, overwrite existing, skip linting
 OneNoteMarkdownExporter.exe --all --overwrite --no-lint
 
+# Export without preserving OneNote dates as file timestamps
+OneNoteMarkdownExporter.exe --all --no-preserve-dates
+
+# Export with YAML front matter metadata
+OneNoteMarkdownExporter.exe --all --date-metadata yaml
+
 # Quiet mode for scheduled tasks (only shows errors)
 OneNoteMarkdownExporter.exe --all --quiet --overwrite
 
@@ -157,15 +180,36 @@ OneNoteMarkdownExporter.exe --all --output "D:\Backups\OneNote" --verbose --over
 
 # Export notes and store assets in a separate folder
 OneNoteMarkdownExporter.exe --all --output "D:\Backups\OneNote" --assets-folder "D:\Backups\OneNoteAssets"
+
+# Export notes with assets grouped under each notebook folder
+OneNoteMarkdownExporter.exe --all --asset-organization notebook
+
+# Export notes with page-local asset folders
+OneNoteMarkdownExporter.exe --all --asset-organization page
 ```
 
 ### Assets Folder
 
-Exported images are saved to `<output>\assets` by default. Use the GUI assets folder field or the CLI `--assets-folder <path>` option to choose a different folder. Relative paths are resolved from the output directory, and absolute paths are used as provided. Missing folders are created automatically. Existing asset folders are reused, and generated asset files with the same names are overwritten on later exports. Paths where the assets folder itself would be an existing file are rejected. Markdown image links are generated relative to each exported page.
+Exported images are saved to `<output>\_assets` by default. This is the `centralized` asset organization mode.
+
+Use the GUI assets folder field or the CLI `--assets-folder <path>` option to choose a different centralized folder. Relative paths are resolved from the output directory, and absolute paths are used as provided. Missing folders are created automatically. Existing asset folders are reused, and generated asset files with the same names are overwritten on later exports. Paths where the assets folder itself would be an existing file are rejected. Markdown image links are generated relative to each exported page.
+
+Generated assets folders are created only when exported content actually contains assets.
+
+Use `--asset-organization <mode>` or the GUI asset organization selector to choose a different layout:
+
+| Mode | Asset folder layout | Custom assets folder |
+|------|---------------------|----------------------|
+| `centralized` | `<output>\_assets` or your chosen folder | Yes |
+| `notebook` | Each notebook folder gets `_assets_NotebookName` | No |
+| `section` | Each section folder gets `_assets_SectionName` | No |
+| `page` | Each page gets `_assets_PageName` beside the Markdown file | No |
+
+Generated scoped folder names use a Windows-safe PascalCase suffix with spaces and punctuation removed. For example, `Project Notes` becomes `_assets_ProjectNotes`, and `Q&A / Work` becomes `_assets_QAWork`. Apostrophes are removed without splitting the word, so `Segun's Notebook` becomes `_assets_SegunsNotebook`. If two generated names collide in the same folder, the second name receives a stable hash suffix such as `_assets_ProjectNotes_a1b2c3d4`.
 
 ### Attachments
 
-Inserted files (PDFs, Office documents, etc.) and embedded media files are copied into the assets folder and linked from the Markdown using their original display name. When an attachment's binary isn't available locally, a clear `[Attachment unavailable: ...]` placeholder is written instead of silently dropping it.
+Inserted files (PDFs, Office documents, etc.) and embedded media files are copied into the active assets folder and linked from the Markdown using their original display name. When an attachment's binary isn't available locally, a clear `[Attachment unavailable: ...]` placeholder is written instead of silently dropping it.
 
 ### Formatting support
 
@@ -178,21 +222,51 @@ OneNote rich-text formatting is converted to Markdown (with Obsidian in mind):
 | Highlight (other colors) | `<mark style="background:#hex">text</mark>` (Obsidian renders the color) |
 | Underline | `<u>text</u>` |
 | Superscript / subscript | `<sup>` / `<sub>` |
-| Heading styles (Heading 1–6) | `#` … `######` |
+| Heading styles (Heading 1-6) | `#` through `######` |
 | To-Do tag | `- [ ]` / `- [x]` task list items |
-| Equations | MathML → LaTeX (`$…$` inline, `$$…$$` block), via the [xsltml](https://xsltml.sourceforge.net/) library |
-| Font (text) color | dropped by default; `<span style="color:…">` when [`--font-colors`](#formatting) / the GUI checkbox is enabled |
+| Equations | MathML to LaTeX (`$...$` inline, `$$...$$` block), via the [xsltml](https://xsltml.sourceforge.net/) library |
+| Font (text) color | dropped by default; `<span style="color:...">` when [`--font-colors`](#formatting) / the GUI checkbox is enabled |
 
-Images keep their original display width (`![image|width](…)`), and multi-line table cells stay intact (joined with `<br>`).
+Images keep their original display width (`![image|width](...)`), and multi-line table cells stay intact (joined with `<br>`).
 
 Links, tables, lists, images, and file attachments are converted as well.
 
-### Subpages
+### Date Preservation
 
-OneNote subpages are preserved as nested folders. A parent page is exported as Markdown beside a folder with the same name, and its subpages are exported inside that folder.
+By default, exported Markdown page files preserve OneNote page dates as Windows file timestamps. The exported `.md` file creation time is set from the OneNote created date when available, and the file modified time is set from the OneNote last modified date when available. Timestamps are applied after Markdown conversion, optional YAML metadata, linting, and file writing.
+
+Date preservation does not change Markdown content. Use the GUI checkbox or `--no-preserve-dates` to turn it off.
+
+YAML front matter metadata is off by default because it changes Markdown content. Enable it with the GUI checkbox or `--date-metadata yaml` when you want metadata inside each Markdown file.
+
+```yaml
+---
+created: "2024-01-15 10:30 UTC"
+updated: "2024-02-20 14:45 UTC"
+---
+```
+
+### Pages, Subpages, And Sub-subpages
+
+A OneNote page exports as a Markdown file. When that page has subpages, the exporter also creates a matching folder with the same name. The Markdown file is the page itself. The matching folder is the expanded subpage area under that page.
+
+For a page with one subpage, the layout looks like this:
 
 ```text
-Section A\
+Section\
+  Strategic Vision.md
+  Strategic Vision\
+    Subpage for Testing.md
+  Goals.md
+  Ideas.md
+```
+
+`Strategic Vision.md` is the OneNote page. `Strategic Vision\` is the matching folder that contains subpages of that page. `Goals.md` and `Ideas.md` remain peer pages in the same section.
+
+The same pattern repeats for sub-subpages:
+
+```text
+Section\
   Parent Page.md
   Parent Page\
     Child Page.md
@@ -200,7 +274,9 @@ Section A\
       Grandchild Page.md
 ```
 
-If you export only a subpage, the parent folders are still created so the exported file keeps its place in the original hierarchy.
+`Child Page.md` is the subpage itself, and `Child Page\` contains that subpage's children.
+
+If only a subpage is selected for export, the parent folder is still created so the exported page keeps its OneNote context, but the unselected parent page Markdown is not exported.
 
 ### Windows Safe Names
 

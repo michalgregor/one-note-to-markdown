@@ -3,5 +3,7 @@ obj/
 .vs/
 *.user
 
+local/
+
 # Node.js dependencies for markdownlint-cli
 node_modules/

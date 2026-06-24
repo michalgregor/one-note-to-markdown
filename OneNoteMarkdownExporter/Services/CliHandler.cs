@@ -38,9 +38,8 @@ namespace OneNoteMarkdownExporter.Services
             var cliFlags = new[]
             {
                 "--all", "--notebook", "--section", "--page", "--output", "-o",
-                "--assets-folder", "--overwrite", "--no-lint", "--lint-config",
-                "--font-colors",
-                "--list", "--dry-run", "--verbose", "-v", "--quiet", "-q",
+                "--assets-folder", "--asset-organization", "--overwrite", "--no-lint", "--lint-config",
+                "--font-colors", "--no-preserve-dates", "--date-metadata", "--list", "--dry-run", "--verbose", "-v", "--quiet", "-q",
                 "--help", "-h", "-?", "--version"
             };
 
@@ -87,7 +86,13 @@ namespace OneNoteMarkdownExporter.Services
 
             var assetsFolderOption = new Option<string?>("--assets-folder")
             {
-                Description = "Path to folder for storing exported assets (default: <output>/assets)"
+                Description = "Path to folder for storing exported assets in centralized mode (default: <output>/_assets)"
+            };
+
+            var assetOrganizationOption = new Option<string>("--asset-organization")
+            {
+                Description = "Asset organization mode: centralized, notebook, section, or page",
+                DefaultValueFactory = _ => "centralized"
             };
 
             var overwriteOption = new Option<bool>("--overwrite")
@@ -108,6 +113,17 @@ namespace OneNoteMarkdownExporter.Services
             var fontColorsOption = new Option<bool>("--font-colors")
             {
                 Description = "Preserve font (text) colors as inline HTML (off by default)"
+            };
+
+            var noPreserveDatesOption = new Option<bool>("--no-preserve-dates")
+            {
+                Description = "Do not preserve OneNote created/modified dates as file timestamps"
+            };
+
+            var dateMetadataOption = new Option<string>("--date-metadata")
+            {
+                Description = "Date metadata mode: none or yaml",
+                DefaultValueFactory = _ => "none"
             };
 
             var listOption = new Option<bool>("--list")
@@ -137,10 +153,13 @@ namespace OneNoteMarkdownExporter.Services
             rootCommand.Options.Add(pageOption);
             rootCommand.Options.Add(outputOption);
             rootCommand.Options.Add(assetsFolderOption);
+            rootCommand.Options.Add(assetOrganizationOption);
             rootCommand.Options.Add(overwriteOption);
             rootCommand.Options.Add(noLintOption);
             rootCommand.Options.Add(lintConfigOption);
             rootCommand.Options.Add(fontColorsOption);
+            rootCommand.Options.Add(noPreserveDatesOption);
+            rootCommand.Options.Add(dateMetadataOption);
             rootCommand.Options.Add(listOption);
             rootCommand.Options.Add(dryRunOption);
             rootCommand.Options.Add(verboseOption);
@@ -148,6 +167,20 @@ namespace OneNoteMarkdownExporter.Services
 
             rootCommand.SetAction(async (result, cancellationToken) =>
             {
+                var assetOrganizationValue = result.GetValue(assetOrganizationOption);
+                if (!TryParseAssetOrganizationMode(assetOrganizationValue, out var assetOrganizationMode))
+                {
+                    Console.Error.WriteLine($"Error: Unknown asset organization mode '{assetOrganizationValue}'. Use centralized, notebook, section, or page.");
+                    return 1;
+                }
+
+                var dateMetadataValue = result.GetValue(dateMetadataOption);
+                if (!TryParseDateMetadataMode(dateMetadataValue, out var dateMetadataMode))
+                {
+                    Console.Error.WriteLine($"Error: Unknown date metadata mode '{dateMetadataValue}'. Use none or yaml.");
+                    return 1;
+                }
+
                 var options = new ExportOptions
                 {
                     ExportAll = result.GetValue(allOption),
@@ -156,10 +189,13 @@ namespace OneNoteMarkdownExporter.Services
                     PageIds = result.GetValue(pageOption)?.ToList(),
                     OutputPath = result.GetValue(outputOption) ?? ExportOptions.GetDefaultOutputPath(),
                     AssetsFolderPath = result.GetValue(assetsFolderOption),
+                    AssetOrganizationMode = assetOrganizationMode,
                     Overwrite = result.GetValue(overwriteOption),
                     ApplyLinting = !result.GetValue(noLintOption),
                     LintConfigPath = result.GetValue(lintConfigOption),
                     IncludeFontColors = result.GetValue(fontColorsOption),
+                    PreserveDates = !result.GetValue(noPreserveDatesOption),
+                    DateMetadataMode = dateMetadataMode,
                     DryRun = result.GetValue(dryRunOption),
                     Verbose = result.GetValue(verboseOption),
                     Quiet = result.GetValue(quietOption)
@@ -178,11 +214,11 @@ namespace OneNoteMarkdownExporter.Services
             OneNoteService? oneNoteService = null;
 
             // Console progress reporter
-            var progress = new Progress<string>(message =>
+            var progress = new Progress<ExportProgressUpdate>(update =>
             {
-                if (!options.Quiet || message.Contains("Error") || message.Contains("failed"))
+                if (!options.Quiet || update.Kind == ExportProgressKind.PageFailed || update.Message.Contains("Error") || update.Message.Contains("failed"))
                 {
-                    Console.WriteLine(message);
+                    Console.WriteLine(update.Message);
                 }
             });
 
@@ -195,6 +231,16 @@ namespace OneNoteMarkdownExporter.Services
                 if (listMode)
                 {
                     return ListHierarchy(exportService, options.Verbose);
+                }
+
+                try
+                {
+                    options.Validate();
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine($"Error: {ex.Message}");
+                    return 1;
                 }
 
                 // Validate that we have selection criteria
@@ -213,9 +259,20 @@ namespace OneNoteMarkdownExporter.Services
                     Console.WriteLine("OneNote to Markdown Exporter");
                     Console.WriteLine("============================");
                     Console.WriteLine($"Output directory: {options.OutputPath}");
-                    Console.WriteLine($"Assets directory: {AssetPathResolver.ResolveAssetsFolderPath(options.OutputPath, options.AssetsFolderPath)}");
+                    Console.WriteLine($"Asset organization: {FormatAssetOrganizationMode(options.AssetOrganizationMode)}");
+                    if (options.AssetOrganizationMode == AssetOrganizationMode.Centralized)
+                    {
+                        Console.WriteLine($"Assets directory: {AssetPathResolver.ResolveAssetsFolderPath(options.OutputPath, options.AssetsFolderPath)}");
+                    }
+                    else
+                    {
+                        Console.WriteLine("Assets directory: generated per selected organization mode");
+                    }
                     Console.WriteLine($"Overwrite: {(options.Overwrite ? "Yes" : "No")}");
                     Console.WriteLine($"Linting: {(options.ApplyLinting ? "Enabled (markdownlint-cli)" : "Disabled")}");
+                    Console.WriteLine($"Font colors: {(options.IncludeFontColors ? "Preserved as inline HTML" : "Dropped")}");
+                    Console.WriteLine($"Date preservation: {(options.PreserveDates ? "Enabled" : "Disabled")}");
+                    Console.WriteLine($"Date metadata: {FormatDateMetadataMode(options.DateMetadataMode)}");
                     if (options.DryRun) Console.WriteLine("Mode: DRY RUN (no files will be created)");
                     Console.WriteLine();
                 }
@@ -243,6 +300,14 @@ namespace OneNoteMarkdownExporter.Services
                     if (result.FailedPages > 0)
                     {
                         Console.WriteLine($"  Pages failed: {result.FailedPages}");
+                    }
+                    if (result.Warnings.Count > 0)
+                    {
+                        Console.WriteLine($"  Warnings: {result.Warnings.Count}");
+                        foreach (var warning in result.Warnings)
+                        {
+                            Console.WriteLine($"  {warning}");
+                        }
                     }
                 }
 
@@ -334,6 +399,70 @@ namespace OneNoteMarkdownExporter.Services
             {
                 PrintItem(child, indent + "  ", verbose);
             }
+        }
+
+        public static bool TryParseAssetOrganizationMode(string? value, out AssetOrganizationMode mode)
+        {
+            switch (value?.Trim().ToLowerInvariant())
+            {
+                case null:
+                case "":
+                case "centralized":
+                    mode = AssetOrganizationMode.Centralized;
+                    return true;
+                case "notebook":
+                    mode = AssetOrganizationMode.Notebook;
+                    return true;
+                case "section":
+                    mode = AssetOrganizationMode.Section;
+                    return true;
+                case "page":
+                    mode = AssetOrganizationMode.Page;
+                    return true;
+                default:
+                    mode = AssetOrganizationMode.Centralized;
+                    return false;
+            }
+        }
+
+        public static bool TryParseDateMetadataMode(string? value, out DateMetadataMode mode)
+        {
+            switch (value?.Trim().ToLowerInvariant())
+            {
+                case null:
+                case "":
+                case "none":
+                    mode = DateMetadataMode.None;
+                    return true;
+                case "yaml":
+                    mode = DateMetadataMode.Yaml;
+                    return true;
+                default:
+                    mode = DateMetadataMode.None;
+                    return false;
+            }
+        }
+
+        private static string FormatAssetOrganizationMode(AssetOrganizationMode mode)
+        {
+            return mode switch
+            {
+                AssetOrganizationMode.Centralized => "centralized",
+                AssetOrganizationMode.Notebook => "notebook",
+                AssetOrganizationMode.Section => "section",
+                AssetOrganizationMode.Page => "page",
+                _ => mode.ToString()
+            };
+        }
+
+        private static string FormatDateMetadataMode(DateMetadataMode mode)
+        {
+            return mode switch
+            {
+                DateMetadataMode.None => "none",
+                DateMetadataMode.Yaml => "yaml",
+                _ => mode.ToString()
+            };
         }
     }
 }
